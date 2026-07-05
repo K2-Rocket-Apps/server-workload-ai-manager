@@ -1,4 +1,4 @@
-import { loadConfig, saveConfig, configPath, toPveConfig } from "@mistral/core";
+import { loadConfig, saveConfig, configPath, toPveConfig, LlmClient } from "@mistral/core";
 import { ToolRegistry } from "@mistral/mcp";
 import { AlertDispatcher } from "@mistral/alerts";
 import { createPveClient } from "@mistral/pve";
@@ -152,12 +152,40 @@ export async function executeSlashCommand(line: string, ctx: CommandContext): Pr
 
     case "apikey": {
       const config = await loadConfig();
-      const set = Boolean(config.llm.api_key || process.env.MISTRAL_API_KEY);
-      ctx.addSystem(
-        set
-          ? "API key: configured ✓\nTo change: exit TUI and run `mistral setup`"
-          : "API key: NOT SET ✗\nRun: mistral setup",
-      );
+      if (!args[0]) {
+        const set = Boolean(config.llm.api_key || process.env.MISTRAL_API_KEY);
+        ctx.addSystem(
+          set
+            ? "API key: configured ✓\nTo change: /apikey <key>  or  mistral setup"
+            : "API key: NOT SET ✗\nSet now: /apikey <your-mistral-key>",
+        );
+        return true;
+      }
+
+      const key = args.join(" ").trim();
+      if (key.length < 8) {
+        ctx.addSystem("API key looks too short. Paste your full Mistral API key.");
+        return true;
+      }
+
+      ctx.setLoading(true);
+      try {
+        config.llm.api_key = key;
+        const client = new LlmClient(config.llm);
+        await client.chat([{ role: "user", content: "Reply with exactly: ok" }]);
+        await saveConfig(config);
+        await ctx.reloadConfig();
+        ctx.addSystem("API key saved and verified ✓  You can chat now.");
+      } catch (err) {
+        const msg = (err as Error).message;
+        if (msg.includes("401") || msg.includes("Unauthorized")) {
+          ctx.addSystem("API key rejected (401). Check the key at console.mistral.ai");
+        } else {
+          ctx.addSystem(`API key test failed: ${msg.slice(0, 200)}`);
+        }
+      } finally {
+        ctx.setLoading(false);
+      }
       return true;
     }
 

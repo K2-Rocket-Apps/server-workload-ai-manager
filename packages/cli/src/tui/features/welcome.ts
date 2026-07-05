@@ -39,7 +39,7 @@ export function generateWelcomeMessages(
     : config.webUrl;
 
   lines.push(`Model: ${provider}/${model} (temp ${temp})`);
-  lines.push(`API key: ${apiKeySet ? "configured ✓" : "NOT SET — run mistral setup or /apikey"}`);
+  lines.push(`API key: ${apiKeySet ? "configured ✓" : "NOT SET — use /apikey <key> or mistral setup"}`);
   lines.push(`PVE: ${pveHost} (node ${pveNode})`);
   lines.push(`Watched VMs: ${watched.join(", ")}`);
   lines.push(`Daemon check interval: ${interval} min`);

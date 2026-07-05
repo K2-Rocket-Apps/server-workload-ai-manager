@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Box, useApp as useInkApp } from "ink";
 import { AppStateProvider, useAppDispatch, useAppSelector, useAppState } from "./state/context.js";
 import { AppShell } from "./components/layout/AppShell.js";
@@ -13,6 +13,11 @@ import { useTerminalDispatch } from "./hooks/use-terminal-dispatch.js";
 import { useCommandPaletteKeyboard } from "./hooks/use-command-palette.js";
 import { welcomeMessageBody } from "./features/welcome.js";
 import { addSystemMessage } from "./state/actions.js";
+import {
+  filterCommands,
+  parseSlashInput,
+  resolveCommand,
+} from "./commands/registry.js";
 import {
   ChatScreen,
   DashboardScreen,
@@ -50,6 +55,7 @@ function MistralAppInner({ onExit }: InnerProps) {
   }, [onExit, exit]);
 
   const { sendChat, runSlash, approvePending, denyPending } = useAgent({ onExit: doExit });
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     if (!welcomeShown && configStatus) {
@@ -67,17 +73,43 @@ function MistralAppInner({ onExit }: InnerProps) {
   const handleSubmit = useCallback(
     async (raw: string) => {
       const text = raw.trim();
-      if (!text || state.loading) return;
+      if (!text || state.loading || submittingRef.current) return;
 
+      submittingRef.current = true;
       dispatch({ type: "CLEAR_INPUT" });
       dispatch({ type: "RESET_SLASH_SELECTED_INDEX" });
       inputHistory.pushLine(text);
 
-      if (text.startsWith("/")) {
-        await runSlash(text);
-        return;
+      try {
+        if (text.startsWith("/")) {
+          const { commandPart } = parseSlashInput(text);
+          if (!resolveCommand(commandPart)) {
+            const matches = filterCommands(text);
+            if (matches.length === 1) {
+              const base = matches[0]!.name.split(" ")[0]!;
+              const resolved = text.includes(" ") ? text : `/${base}`;
+              await runSlash(resolved);
+              return;
+            }
+            if (matches.length > 1) {
+              dispatch(
+                addSystemMessage(
+                  `Unknown: /${commandPart}\nDid you mean: ${matches
+                    .slice(0, 5)
+                    .map((m) => m.usage)
+                    .join("  ·  ")}\nTab to complete, or keep typing.`,
+                ),
+              );
+              return;
+            }
+          }
+          await runSlash(text);
+          return;
+        }
+        await sendChat(text);
+      } finally {
+        submittingRef.current = false;
       }
-      await sendChat(text);
     },
     [dispatch, inputHistory, runSlash, sendChat, state.loading],
   );

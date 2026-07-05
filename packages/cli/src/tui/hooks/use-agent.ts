@@ -3,6 +3,7 @@ import { AgentLoop, loadConfig } from "@mistral/core";
 import { ToolRegistry } from "@mistral/mcp";
 import { executeSlashCommand } from "../commands/handler.js";
 import type { CommandContext } from "../commands/handler.js";
+import { redactSlashCommand } from "../core/secrets.js";
 import {
   addAssistantMessage,
   addSystemMessage,
@@ -174,7 +175,7 @@ export function useAgent({ onExit }: UseAgentOptions): AgentHooks {
 
   const runSlash = useCallback(
     async (line: string) => {
-      dispatch(addUserMessage(line));
+      dispatch(addUserMessage(redactSlashCommand(line)));
       const ctx = buildCommandContext(dispatch, onExit, () => stateRef.current);
       await executeSlashCommand(line, ctx);
     },

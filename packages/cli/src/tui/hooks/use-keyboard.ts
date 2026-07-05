@@ -100,6 +100,13 @@ function handleAction(
       return true;
 
     case KeyAction.Submit:
+      // TextInput handles Enter in chat; only palette/modals use keyboard submit.
+      if (state.modal.type === "none" && state.tab === "chat" && !state.input.startsWith("/")) {
+        return false;
+      }
+      handlers.onSubmit();
+      return true;
+
     case KeyAction.PaletteAccept:
       handlers.onSubmit();
       return true;

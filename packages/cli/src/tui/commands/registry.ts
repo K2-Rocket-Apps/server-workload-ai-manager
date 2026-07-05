@@ -111,9 +111,10 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   {
     name: "apikey",
     aliases: ["key"],
-    description: "API key status (use /setup to change)",
-    usage: "/apikey",
+    description: "Show or set Mistral API key (masked in chat)",
+    usage: "/apikey [your-key]",
     category: "llm",
+    args: [{ name: "key", description: "Mistral API key", optional: true }],
   },
   {
     name: "report",

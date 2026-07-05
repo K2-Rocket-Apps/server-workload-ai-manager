@@ -48,7 +48,6 @@ export function MessageBubble({
   const resolved = theme ?? getTheme();
   const color = messageRoleColor(resolved, message.role);
   const isAssistant = message.role === "assistant";
-  const isSystem = message.role === "system";
 
   return (
     <Box flexDirection="column" marginBottom={1}>
@@ -67,13 +66,7 @@ export function MessageBubble({
         ) : null}
       </Box>
 
-      <Box
-        marginLeft={2}
-        flexDirection="column"
-        borderStyle={isSystem ? "single" : undefined}
-        borderColor={isSystem ? resolved.tokens.systemBubble : undefined}
-        paddingX={isSystem ? 1 : 0}
-      >
+      <Box marginLeft={2} flexDirection="column">
         {message.streaming && !message.content ? (
           <SpinnerLine label="Generating response…" theme={resolved} />
         ) : isAssistant ? (
