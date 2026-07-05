@@ -4,31 +4,16 @@ AI ops agent for your Proxmox VE host. Chat from the terminal, get VM health rep
 
 ## Install (on your PVE host)
 
-**Repo is private** — `curl` to `raw.githubusercontent.com` will 404. Use a GitHub token with read access.
-
-### Option A — clone + install (recommended)
-
-SSH to PVE as root (`ssh root@100.78.123.108` via Tailscale), then:
+SSH to PVE as root, then one command:
 
 ```bash
-export GITHUB_TOKEN=ghp_YOUR_TOKEN_HERE
-
-git clone https://x-access-token:${GITHUB_TOKEN}@github.com/K2-Rocket-Apps/server-workload-ai-manager.git /opt/mistral
-cd /opt/mistral && sudo -E bash infra/install.sh
-
-sudo systemctl enable --now mistral-daemon mistral-web
+curl -fsSL https://raw.githubusercontent.com/K2-Rocket-Apps/server-workload-ai-manager/main/infra/one-click-install.sh | sudo bash
 ```
 
-Create a token at: https://github.com/settings/tokens — scope: **repo** (read) on `K2-Rocket-Apps/server-workload-ai-manager`.
-
-### Option B — one-liner (token in env)
+Then enable services:
 
 ```bash
-export GITHUB_TOKEN=ghp_YOUR_TOKEN_HERE
-
-curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" \
-  "https://api.github.com/repos/K2-Rocket-Apps/server-workload-ai-manager/contents/infra/one-click-install.sh?ref=main" \
-  | jq -r .content | base64 -d | sudo -E bash
+sudo systemctl enable --now mistral-daemon mistral-web
 ```
 
 ### What setup asks you
@@ -150,4 +135,4 @@ mistral setup
 
 ## Repo
 
-Private — [K2-Rocket-Apps/server-workload-ai-manager](https://github.com/K2-Rocket-Apps/server-workload-ai-manager)
+Public — https://github.com/K2-Rocket-Apps/server-workload-ai-manager
