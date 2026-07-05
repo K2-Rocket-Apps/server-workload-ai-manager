@@ -35,16 +35,25 @@ export class AlertDispatcher {
       const transport = nodemailer.createTransport({
         host: email.smtp_host,
         port: email.smtp_port,
-        secure: email.smtp_port === 465,
-        auth: email.smtp_user ? { user: email.smtp_user, pass: email.smtp_pass } : undefined,
+        secure: email.smtp_secure ?? email.smtp_port === 465,
+        requireTLS: email.require_tls ?? true,
+        auth:
+          email.smtp_user && email.smtp_pass
+            ? { user: email.smtp_user, pass: email.smtp_pass }
+            : undefined,
+        tls: { minVersion: "TLSv1.2" },
       });
-      await transport.sendMail({
+
+      await transport.verify();
+
+      const info = await transport.sendMail({
         from: email.from,
         to: email.to.join(", "),
         subject: payload.subject,
         text: payload.body,
       });
-      return { ok: true };
+
+      return { ok: true, messageId: info.messageId } as { ok: boolean; error?: string };
     } catch (err) {
       return { ok: false, error: (err as Error).message };
     }

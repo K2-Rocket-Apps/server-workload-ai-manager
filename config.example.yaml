@@ -19,6 +19,8 @@ alerts:
     smtp_port: 587
     smtp_user: ${SMTP_USER}
     smtp_pass: ${SMTP_PASS}
+    smtp_secure: false
+    require_tls: true
     from: mistral@k2tec.local
     to:
       - ${ALERT_EMAIL_TO}
@@ -59,8 +61,12 @@ migration:
   requires_approval: true
 
 web:
-  host: 127.0.0.1
+  host: 0.0.0.0
   port: 8787
+  bind_mode: lan
+  public_url: http://192.168.0.15:8787
+  password_hash: ""
+  session_secret: ""
 
 mcp:
   http_host: 127.0.0.1

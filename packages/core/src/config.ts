@@ -22,6 +22,8 @@ export const ConfigSchema = z.object({
       smtp_port: z.number().default(587),
       smtp_user: z.string().optional(),
       smtp_pass: z.string().optional(),
+      smtp_secure: z.boolean().default(false),
+      require_tls: z.boolean().default(true),
       from: z.string().default("mistral@k2tec.local"),
       to: z.array(z.string()).default([]),
     }),
@@ -68,8 +70,12 @@ export const ConfigSchema = z.object({
     .default({}),
   web: z
     .object({
-      host: z.string().default("127.0.0.1"),
+      host: z.string().default("0.0.0.0"),
       port: z.number().default(8787),
+      bind_mode: z.enum(["lan", "tailscale", "localhost"]).default("lan"),
+      public_url: z.string().optional(),
+      password_hash: z.string().default(""),
+      session_secret: z.string().default(""),
     })
     .default({}),
   mcp: z
@@ -98,7 +104,14 @@ export const DEFAULT_CONFIG: AppConfig = {
     max_tokens: 2000,
   },
   alerts: {
-    email: { enabled: false, smtp_port: 587, from: "mistral@k2tec.local", to: [] },
+    email: {
+      enabled: false,
+      smtp_port: 587,
+      smtp_secure: false,
+      require_tls: true,
+      from: "mistral@k2tec.local",
+      to: [],
+    },
     slack: { enabled: false },
   },
   daemon: {
@@ -113,6 +126,6 @@ export const DEFAULT_CONFIG: AppConfig = {
     guest_exec_allowlist: ["df", "systemctl", "kubectl", "uptime", "free", "hostname"],
   },
   migration: { target_nodes: [], requires_approval: true },
-  web: { host: "127.0.0.1", port: 8787 },
+  web: { host: "0.0.0.0", port: 8787, bind_mode: "lan", password_hash: "", session_secret: "" },
   mcp: { http_host: "127.0.0.1", http_port: 8788 },
 };

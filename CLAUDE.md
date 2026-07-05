@@ -24,9 +24,31 @@ mistral                # chat TUI
 
 ## Install on PVE host
 
+**One-click (recommended):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/K2-Rocket-Apps/server-workload-ai-manager/main/infra/one-click-install.sh | sudo bash
+```
+
+Or from a local clone:
+
 ```bash
 sudo ./infra/install.sh
-sudo systemctl enable --now mistral-daemon
+sudo systemctl enable --now mistral-daemon mistral-web
+```
+
+Setup wizard prompts for:
+- **Web UI password** (required)
+- **Bind address**: LAN (default), Tailscale, or localhost
+- **SMTP email** and Slack (optional)
+
+## Web UI
+
+Password-protected. URL is `web.public_url` in config (LAN IP or Tailscale IP).
+
+```bash
+mistral setup          # reconfigure password / bind / email
+mistral test-email     # verify SMTP
 ```
 
 ## Configuration

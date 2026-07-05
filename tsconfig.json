@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/pve" },
+    { "path": "packages/core" },
+    { "path": "packages/alerts" },
+    { "path": "packages/mcp" },
+    { "path": "packages/daemon" },
+    { "path": "packages/web" },
+    { "path": "packages/cli" }
+  ]
+}

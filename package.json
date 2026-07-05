@@ -3,12 +3,15 @@
   "private": true,
   "version": "0.1.0",
   "description": "Mistral AI agent for Proxmox VE — MCP tools, TUI, daemon alerts",
+  "devDependencies": {
+    "typescript": "^5.8.0"
+  },
   "scripts": {
-    "build": "pnpm -r run build",
+    "build": "tsc -b tsconfig.json",
     "dev": "pnpm --filter @mistral/cli run dev",
     "lint": "pnpm -r run lint",
     "test": "pnpm -r run test",
-    "typecheck": "pnpm -r run typecheck"
+    "typecheck": "tsc -b tsconfig.json --dry"
   },
   "engines": {
     "node": ">=20"

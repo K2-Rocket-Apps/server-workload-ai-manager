@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { loadConfig, saveConfig, configPath, toPveConfig } from "@mistral/core";
+import { loadConfig, saveConfig, configPath, toPveConfig, runSetup } from "@mistral/core";
 import { createPveClient } from "@mistral/pve";
 import { ToolRegistry } from "@mistral/mcp";
 import { startStdioMcp, startHttpMcp } from "@mistral/mcp";
@@ -66,6 +66,34 @@ program
     console.log(`LLM: ${config.llm.provider} / ${config.llm.model}`);
     console.log(`Watched VMs: ${config.daemon.watched_vmids.join(", ")}`);
     console.log(`Alerts: email=${config.alerts.email.enabled} slack=${config.alerts.slack.enabled}`);
+    console.log(`Web UI: ${config.web.public_url ?? `http://${config.web.host}:${config.web.port}`}`);
+    console.log(`Web password: ${config.web.password_hash ? "set" : "NOT SET — run mistral setup"}`);
+  });
+
+program
+  .command("setup")
+  .description("Interactive setup — web password, bind address (LAN/Tailscale), email")
+  .action(async () => {
+    await runSetup();
+  });
+
+program
+  .command("test-email")
+  .description("Send test email via SMTP")
+  .action(async () => {
+    const config = await loadConfig();
+    const alerts = new AlertDispatcher(config.alerts);
+    if (!config.alerts.email.enabled) {
+      console.error("Email not enabled. Run: mistral setup");
+      process.exit(1);
+    }
+    const result = await alerts.send({
+      subject: "[Mistral PVE] Email test",
+      body: "If you received this, SMTP is working correctly.",
+      severity: "info",
+    });
+    console.log(JSON.stringify(result, null, 2));
+    if (!result.email?.ok) process.exit(1);
   });
 
 program
