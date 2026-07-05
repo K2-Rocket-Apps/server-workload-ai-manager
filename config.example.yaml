@@ -1,0 +1,67 @@
+pve:
+  host: https://192.168.0.15:8006
+  token_id: mistral@pve!agent
+  token_secret: ${MISTRAL_PVE_TOKEN_SECRET}
+  node: pve
+  insecure: true
+
+llm:
+  provider: mistral
+  api_key: ${MISTRAL_API_KEY}
+  model: mistral-small-latest
+  temperature: 0.3
+  max_tokens: 2000
+
+alerts:
+  email:
+    enabled: true
+    smtp_host: ${SMTP_HOST}
+    smtp_port: 587
+    smtp_user: ${SMTP_USER}
+    smtp_pass: ${SMTP_PASS}
+    from: mistral@k2tec.local
+    to:
+      - ${ALERT_EMAIL_TO}
+  slack:
+    enabled: true
+    webhook_url: ${SLACK_WEBHOOK_URL}
+
+daemon:
+  enabled: true
+  check_interval_minutes: 15
+  report_cron: "0 7 * * *"
+  watched_vmids:
+    - 121
+    - 122
+
+policies:
+  require_approval_for:
+    - stop
+    - reboot
+    - migrate
+    - guest_exec
+  auto_alert_on:
+    - guest_agent_down
+    - high_cpu
+    - high_mem
+    - disk_full
+    - vm_stopped_unexpected
+  guest_exec_allowlist:
+    - df
+    - systemctl
+    - kubectl
+    - uptime
+    - free
+    - hostname
+
+migration:
+  target_nodes: []
+  requires_approval: true
+
+web:
+  host: 127.0.0.1
+  port: 8787
+
+mcp:
+  http_host: 127.0.0.1
+  http_port: 8788

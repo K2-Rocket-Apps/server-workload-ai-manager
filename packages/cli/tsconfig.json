@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "jsx": "react-jsx"
+  },
+  "include": ["src/**/*"],
+  "references": [
+    { "path": "../core" },
+    { "path": "../pve" },
+    { "path": "../mcp" },
+    { "path": "../alerts" },
+    { "path": "../daemon" },
+    { "path": "../web" }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "server-workload-ai-manager",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Mistral AI agent for Proxmox VE — MCP tools, TUI, daemon alerts",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "dev": "pnpm --filter @mistral/cli run dev",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm -r run test",
+    "typecheck": "pnpm -r run typecheck"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.33.0"
+}

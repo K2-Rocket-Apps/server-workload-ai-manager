@@ -1,0 +1,15 @@
+[Unit]
+Description=Mistral PVE health daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/mistral/secrets.env
+ExecStart=/usr/local/bin/mistral daemon start
+Restart=on-failure
+RestartSec=30
+User=root
+
+[Install]
+WantedBy=multi-user.target
