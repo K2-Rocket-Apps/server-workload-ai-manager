@@ -9,24 +9,9 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: tests-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   tests:
-    runs-on: k2-arc-linux
-    timeout-minutes: 20
-    env:
-      npm_config_cache: ~/.npm
-    steps:
-      - uses: actions/checkout@v4
-      - run: node -v && npm -v
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: pnpm test
+    uses: K2-Rocket-Apps/ci-workflows/.github/workflows/tests.yml@v1
+    with:
+      php-versions: '["8.4"]'
+    secrets: inherit

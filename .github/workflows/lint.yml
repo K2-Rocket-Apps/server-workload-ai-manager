@@ -9,23 +9,7 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: lint-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  quality:
-    runs-on: k2-arc-linux
-    timeout-minutes: 15
-    env:
-      npm_config_cache: ~/.npm
-    steps:
-      - uses: actions/checkout@v4
-      - run: node -v && npm -v
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
+  lint:
+    uses: K2-Rocket-Apps/ci-workflows/.github/workflows/lint.yml@v1
+    secrets: inherit
