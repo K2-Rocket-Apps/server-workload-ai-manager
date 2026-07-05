@@ -2,7 +2,10 @@ import { loadConfig, saveConfig, configPath, toPveConfig } from "@mistral/core";
 import { ToolRegistry } from "@mistral/mcp";
 import { AlertDispatcher } from "@mistral/alerts";
 import { createPveClient } from "@mistral/pve";
-import type { TabId } from "../types.js";
+import type { TabId, UiMessage } from "../types.js";
+import { listThemeNames, type ThemeName } from "../core/theme.js";
+import { exportMessages, type ExportFormat } from "../features/export-chat.js";
+import { formatBindingsHelp } from "../core/keybindings.js";
 import {
   formatHelpText,
   LLM_MODELS,
@@ -19,6 +22,10 @@ export type CommandContext = {
   reloadConfig: () => Promise<void>;
   exit: () => void;
   setLoading: (v: boolean) => void;
+  setTheme?: (theme: ThemeName) => void;
+  openCommandPalette?: () => void;
+  openKeybindings?: () => void;
+  getMessages?: () => UiMessage[];
 };
 
 function parseArgs(line: string): { name: string; args: string[] } {
@@ -435,7 +442,16 @@ export async function executeSlashCommand(line: string, ctx: CommandContext): Pr
 
     case "tab": {
       const t = (args[0] ?? "").toLowerCase() as TabId;
-      const valid: TabId[] = ["chat", "vms", "alerts", "settings", "approvals"];
+      const valid: TabId[] = [
+        "chat",
+        "dashboard",
+        "vms",
+        "alerts",
+        "settings",
+        "approvals",
+        "logs",
+        "help",
+      ];
       if (!valid.includes(t)) {
         ctx.addSystem(`Unknown tab. Use: ${valid.join(", ")}`);
         return true;
@@ -443,6 +459,66 @@ export async function executeSlashCommand(line: string, ctx: CommandContext): Pr
       ctx.setTab(t);
       return true;
     }
+
+    case "dashboard":
+      ctx.setTab("dashboard");
+      await ctx.refreshVms();
+      return true;
+
+    case "logs":
+      ctx.setTab("logs");
+      return true;
+
+    case "theme": {
+      if (!args[0]) {
+        ctx.addSystem(`Themes: ${listThemeNames().join(", ")}\nSet: /theme mistral`);
+        return true;
+      }
+      const name = args[0]!.toLowerCase() as ThemeName;
+      if (!listThemeNames().includes(name)) {
+        ctx.addSystem(`Unknown theme "${name}". Run /themes`);
+        return true;
+      }
+      ctx.setTheme?.(name);
+      ctx.addSystem(`Theme set to ${name}`);
+      return true;
+    }
+
+    case "themes":
+      ctx.addSystem(`Available themes:\n${listThemeNames().map((t) => `  • ${t}`).join("\n")}`);
+      return true;
+
+    case "export": {
+      const format = (args[0] ?? "markdown").toLowerCase() as ExportFormat;
+      if (!["text", "markdown", "json"].includes(format)) {
+        ctx.addSystem("Usage: /export text|markdown|json");
+        return true;
+      }
+      const messages = ctx.getMessages?.() ?? [];
+      if (!messages.length) {
+        ctx.addSystem("No messages to export.");
+        return true;
+      }
+      ctx.setLoading(true);
+      try {
+        const path = await exportMessages(messages, format);
+        ctx.addSystem(`Exported ${messages.length} messages to:\n${path}`);
+      } catch (err) {
+        ctx.addSystem(`Export failed: ${(err as Error).message}`);
+      } finally {
+        ctx.setLoading(false);
+      }
+      return true;
+    }
+
+    case "palette":
+      ctx.openCommandPalette?.();
+      return true;
+
+    case "keys":
+      ctx.openKeybindings?.();
+      ctx.addSystem(formatBindingsHelp());
+      return true;
 
     case "settings":
       ctx.setTab("settings");

@@ -237,13 +237,13 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   {
     name: "tab",
     description: "Switch to a tab",
-    usage: "/tab <chat|vms|alerts|settings|approvals>",
+    usage: "/tab <chat|dashboard|vms|alerts|settings|approvals|logs|help>",
     category: "nav",
     args: [
       {
         name: "name",
         description: "Tab name",
-        choices: ["chat", "vms", "alerts", "settings", "approvals"],
+        choices: ["chat", "dashboard", "vms", "alerts", "settings", "approvals", "logs", "help"],
       },
     ],
   },
@@ -265,6 +265,66 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     description: "Open pending approvals tab",
     usage: "/approvals",
     category: "nav",
+  },
+  {
+    name: "dashboard",
+    description: "Open dashboard overview",
+    usage: "/dashboard",
+    category: "nav",
+  },
+  {
+    name: "logs",
+    description: "Open tool log viewer",
+    usage: "/logs",
+    category: "nav",
+  },
+  {
+    name: "theme",
+    description: "Show or set UI theme",
+    usage: "/theme [mistral|midnight|forest|amber|mono]",
+    category: "admin",
+    args: [
+      {
+        name: "name",
+        description: "Theme name",
+        optional: true,
+        choices: ["mistral", "midnight", "forest", "amber", "mono"],
+      },
+    ],
+  },
+  {
+    name: "themes",
+    description: "List available UI themes",
+    usage: "/themes",
+    category: "admin",
+  },
+  {
+    name: "export",
+    description: "Export chat to ~/.mistral/exports/",
+    usage: "/export [text|markdown|json]",
+    category: "chat",
+    args: [
+      {
+        name: "format",
+        description: "Export format",
+        optional: true,
+        choices: ["text", "markdown", "json"],
+      },
+    ],
+  },
+  {
+    name: "palette",
+    aliases: ["commands", "cmd"],
+    description: "Open fuzzy command palette (Ctrl+K)",
+    usage: "/palette",
+    category: "nav",
+  },
+  {
+    name: "keys",
+    aliases: ["keybindings", "shortcuts"],
+    description: "Show keyboard shortcuts",
+    usage: "/keys",
+    category: "chat",
   },
 ];
 
