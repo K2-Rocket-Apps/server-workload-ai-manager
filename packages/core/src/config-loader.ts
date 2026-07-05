@@ -29,11 +29,48 @@ function resolveObjectEnv(obj: unknown): unknown {
   return obj;
 }
 
+export async function loadSecretsEnv(): Promise<void> {
+  const candidates = [
+    process.env.MISTRAL_SECRETS_FILE,
+    "/etc/mistral/secrets.env",
+    join(homedir(), ".config", "mistral", "secrets.env"),
+  ].filter((p): p is string => Boolean(p));
+
+  for (const path of candidates) {
+    try {
+      const raw = await readFile(path, "utf8");
+      for (const line of raw.split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+        const eq = trimmed.indexOf("=");
+        if (eq <= 0) continue;
+        const key = trimmed.slice(0, eq).trim();
+        let val = trimmed.slice(eq + 1).trim();
+        if (
+          (val.startsWith('"') && val.endsWith('"')) ||
+          (val.startsWith("'") && val.endsWith("'"))
+        ) {
+          val = val.slice(1, -1);
+        }
+        if (key && process.env[key] === undefined) {
+          process.env[key] = val;
+        }
+      }
+      return;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+        console.warn(`Warning: could not read secrets file ${path}`);
+      }
+    }
+  }
+}
+
 export async function loadConfig(path = configPath()): Promise<AppConfig> {
+  await loadSecretsEnv();
   try {
     const raw = await readFile(path, "utf8");
     const parsed = resolveObjectEnv(parse(raw));
-    return ConfigSchema.parse({ ...DEFAULT_CONFIG, ...(parsed as object) });
+    return applyEnvDefaults(ConfigSchema.parse({ ...DEFAULT_CONFIG, ...(parsed as object) }));
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
       const merged = applyEnvDefaults(DEFAULT_CONFIG);
@@ -92,5 +129,6 @@ export function toPveConfig(config: AppConfig) {
     tokenSecret: config.pve.token_secret,
     node: config.pve.node,
     insecure: config.pve.insecure,
+    auth: "auto" as const,
   };
 }

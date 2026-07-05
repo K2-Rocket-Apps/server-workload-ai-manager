@@ -1,4 +1,5 @@
 import { Agent, fetch as undiciFetch } from "undici";
+import { isLocalPveHost, pveshCall } from "./local.js";
 import type {
   GuestExecResult,
   GuestExecStatus,
@@ -17,15 +18,22 @@ export class PveClient {
   private readonly authHeader: string;
   private readonly defaultNode: string;
   private readonly dispatcher: Agent | undefined;
+  private readonly useLocal: boolean;
 
   constructor(private readonly config: PveConfig) {
     const host = config.host.replace(/\/$/, "");
     this.baseUrl = `${host}/api2/json`;
     this.authHeader = `PVEAPIToken=${config.tokenId}=${config.tokenSecret}`;
     this.defaultNode = config.node ?? "pve";
+    this.useLocal = resolveLocalAuth(config);
     if (config.insecure !== false) {
       this.dispatcher = new Agent({ connect: { rejectUnauthorized: false } });
     }
+  }
+
+  /** Whether this client talks to PVE via local pvesh (no API token). */
+  isLocalMode(): boolean {
+    return this.useLocal;
   }
 
   async listVms(node?: string): Promise<VmSummary[]> {
@@ -314,6 +322,12 @@ export class PveClient {
   }
 
   private async get<T>(path: string, params?: Record<string, string | number>): Promise<T> {
+    if (this.useLocal) {
+      const query = params
+        ? Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)]))
+        : undefined;
+      return pveshCall<T>("get", path, query);
+    }
     const url = new URL(`${this.baseUrl}${path}`);
     if (params) {
       for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
@@ -327,6 +341,14 @@ export class PveClient {
   }
 
   private async post<T>(path: string, body: JsonRecord): Promise<T> {
+    if (this.useLocal) {
+      const params: Record<string, string | number | string[]> = {};
+      for (const [k, v] of Object.entries(body)) {
+        if (Array.isArray(v)) params[k] = v.map(String);
+        else if (v != null) params[k] = typeof v === "number" ? v : String(v);
+      }
+      return pveshCall<T>("create", path, params);
+    }
     const res = await undiciFetch(`${this.baseUrl}${path}`, {
       method: "POST",
       headers: {
@@ -340,6 +362,13 @@ export class PveClient {
   }
 
   private async put<T>(path: string, body: JsonRecord): Promise<T> {
+    if (this.useLocal) {
+      const params: Record<string, string | number | string[]> = {};
+      for (const [k, v] of Object.entries(body)) {
+        if (v != null) params[k] = typeof v === "number" ? v : String(v);
+      }
+      return pveshCall<T>("set", path, params);
+    }
     const res = await undiciFetch(`${this.baseUrl}${path}`, {
       method: "PUT",
       headers: {
@@ -390,6 +419,15 @@ function formatOstype(ostype: string): string {
   return OSTYPE_LABELS[ostype] ?? ostype;
 }
 
+function resolveLocalAuth(config: PveConfig): boolean {
+  if (config.auth === "local") return true;
+  if (config.auth === "token") return false;
+  if (config.tokenSecret) return false;
+  return isLocalPveHost();
+}
+
 export function createPveClient(config: PveConfig): PveClient {
   return new PveClient(config);
 }
+
+export { isLocalPveHost } from "./local.js";

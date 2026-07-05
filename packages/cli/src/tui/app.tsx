@@ -66,16 +66,15 @@ function MistralAppInner({ onExit }: InnerProps) {
   }, [welcomeShown, configStatus, dispatch]);
 
   useEffect(() => {
-    if (configStatus && vms.length === 0 && !state.vmsLoading) {
-      void refreshVms();
-    }
-  }, [configStatus, refreshVms, state.vmsLoading, vms.length]);
+    if (!configStatus) return;
+    void refreshVms();
+  }, [configStatus, refreshVms]);
 
   useEffect(() => {
-    if (tab === "dashboard" || tab === "vms") {
+    if ((tab === "dashboard" || tab === "vms") && configStatus && vms.length === 0 && !state.vmsLoading && !state.vmsError) {
       void refreshVms();
     }
-  }, [tab, refreshVms]);
+  }, [tab, configStatus, refreshVms, vms.length, state.vmsLoading, state.vmsError]);
 
   const handleSubmit = useCallback(
     async (raw: string) => {

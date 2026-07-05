@@ -97,14 +97,34 @@ export async function runSetup(options: { nonInteractive?: boolean } = {}): Prom
       }
     }
 
-    // PVE token
-    console.log("\n--- Proxmox API (optional, needed for VM tools) ---");
-    const pveSet = config.pve.token_secret || process.env.MISTRAL_PVE_TOKEN_SECRET;
-    if (!pveSet) {
-      const token = await promptMasked("PVE token secret (mistral@pve!agent): ", rl);
-      if (token) config.pve.token_secret = token;
+    // PVE access
+    const { createPveClient, isLocalPveHost } = await import("@mistral/pve");
+    const { toPveConfig } = await import("./config-loader.js");
+
+    if (isLocalPveHost()) {
+      console.log("\n--- Proxmox (local host) ---");
+      console.log("Running on PVE — using pvesh as root (no API token needed).");
     } else {
-      console.log("PVE token already configured.");
+      console.log("\n--- Proxmox API (remote host) ---");
+      const pveSet = config.pve.token_secret || process.env.MISTRAL_PVE_TOKEN_SECRET;
+      if (!pveSet) {
+        const token = await promptMasked("PVE token secret (mistral@pve!agent): ", rl);
+        if (token) config.pve.token_secret = token;
+      } else {
+        console.log("PVE token already configured.");
+      }
+    }
+
+    process.stdout.write("Testing PVE...");
+    try {
+      const pve = createPveClient(toPveConfig(config));
+      const vms = await pve.listVms();
+      const mode = pve.isLocalMode() ? "local pvesh" : "API token";
+      console.log(` OK (${vms.length} VMs via ${mode})`);
+    } catch (err) {
+      console.log(` FAILED: ${(err as Error).message}`);
+      const cont = await rl.question("Continue anyway? [y/N]: ");
+      if (cont.toLowerCase() !== "y") process.exit(1);
     }
 
     // Web password

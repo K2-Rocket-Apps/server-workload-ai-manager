@@ -1,5 +1,6 @@
 import { useCallback, useRef } from "react";
 import { AgentLoop, loadConfig } from "@mistral/core";
+import { isLocalPveHost } from "@mistral/pve";
 import { ToolRegistry } from "@mistral/mcp";
 import { executeSlashCommand } from "../commands/handler.js";
 import type { CommandContext } from "../commands/handler.js";
@@ -58,6 +59,7 @@ function buildCommandContext(dispatch: AppDispatch, onExit: () => void, getState
             model: config.llm.model,
             provider: config.llm.provider,
             apiKeySet: Boolean(config.llm.api_key || process.env.MISTRAL_API_KEY),
+            pveTokenSet: Boolean(config.pve.token_secret || process.env.MISTRAL_PVE_TOKEN_SECRET) || isLocalPveHost(),
             pveHost: config.pve.host,
             pveNode: config.pve.node,
             webUrl: config.web.public_url ?? `http://${config.web.host}:${config.web.port}`,

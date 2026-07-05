@@ -157,7 +157,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
 
     case "VMS_LOAD_START":
-      return { ...state, vmsLoading: true, vmsError: null };
+      return { ...state, vmsLoading: true };
 
     case "VMS_LOAD_SUCCESS":
       return {

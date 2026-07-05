@@ -9,6 +9,7 @@ import { FooterBar } from "./FooterBar.js";
 import { RightPanel } from "./RightPanel.js";
 import { Sidebar } from "./Sidebar.js";
 import { TitleBar } from "./TitleBar.js";
+import { ErrorBanner } from "./ErrorBanner.js";
 
 export type AppShellProps = {
   children: ReactNode;
@@ -45,6 +46,8 @@ export function AppShell({
   return (
     <Box flexDirection="column" width={layout.cols} height={layout.rows}>
       <TitleBar />
+
+      <ErrorBanner />
 
       <Box flexDirection="row" flexGrow={1} height={bodyHeight + layout.tabBarRows}>
         {layout.sidebarVisible ? (

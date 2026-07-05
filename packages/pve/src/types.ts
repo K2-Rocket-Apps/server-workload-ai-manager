@@ -4,6 +4,8 @@ export interface PveConfig {
   tokenSecret: string;
   node?: string;
   insecure?: boolean;
+  /** auto = token if set, else local pvesh on PVE host */
+  auth?: "auto" | "token" | "local";
 }
 
 export interface VmSummary {

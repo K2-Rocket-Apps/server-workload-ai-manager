@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { loadConfig } from "@mistral/core";
 import { ToolRegistry } from "@mistral/mcp";
 import { useAppDispatch, useAppState } from "../state/context.js";
@@ -151,26 +151,36 @@ export type UseVmsResult = {
 export function useVms(): UseVmsResult {
   const { vms, vmReportRaw, nodeStats, vmsLoading, vmsError } = useAppState();
   const dispatch = useAppDispatch();
+  const inflight = useRef<Promise<void> | null>(null);
 
   const refreshVms = useCallback(async () => {
-    dispatch({ type: "VMS_LOAD_START" });
-    try {
-      const config = await loadConfig();
-      const registry = new ToolRegistry(config);
-      const parsed = await fetchVmInventory(registry);
-      if (parsed.error && !parsed.vms.length) {
-        dispatch({ type: "VMS_LOAD_ERROR", error: parsed.error });
-        return;
+    if (inflight.current) return inflight.current;
+
+    const run = async () => {
+      dispatch({ type: "VMS_LOAD_START" });
+      try {
+        const config = await loadConfig();
+        const registry = new ToolRegistry(config);
+        const parsed = await fetchVmInventory(registry);
+        if (parsed.error && !parsed.vms.length) {
+          dispatch({ type: "VMS_LOAD_ERROR", error: parsed.error });
+          return;
+        }
+        dispatch({
+          type: "VMS_LOAD_SUCCESS",
+          vms: parsed.vms,
+          raw: parsed.formatted,
+          nodeStats: parsed.nodeStats,
+        });
+      } catch (err) {
+        dispatch({ type: "VMS_LOAD_ERROR", error: (err as Error).message });
+      } finally {
+        inflight.current = null;
       }
-      dispatch({
-        type: "VMS_LOAD_SUCCESS",
-        vms: parsed.vms,
-        raw: parsed.formatted,
-        nodeStats: parsed.nodeStats,
-      });
-    } catch (err) {
-      dispatch({ type: "VMS_LOAD_ERROR", error: (err as Error).message });
-    }
+    };
+
+    inflight.current = run();
+    return inflight.current;
   }, [dispatch]);
 
   return {

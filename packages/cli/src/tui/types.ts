@@ -78,6 +78,7 @@ export type ConfigStatus = {
   model: string;
   provider: string;
   apiKeySet: boolean;
+  pveTokenSet: boolean;
   pveHost: string;
   pveNode: string;
   webUrl: string;

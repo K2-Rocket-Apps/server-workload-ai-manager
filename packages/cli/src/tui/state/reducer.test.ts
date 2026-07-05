@@ -77,6 +77,7 @@ describe("selectors", () => {
         model: "m",
         provider: "mistral",
         apiKeySet: true,
+        pveTokenSet: true,
         pveHost: "h",
         pveNode: "pve",
         webUrl: "u",

@@ -1,4 +1,5 @@
 import type { AppConfig } from "@mistral/core";
+import { isLocalPveHost } from "@mistral/pve";
 import type { ConfigStatus } from "../types.js";
 
 /**
@@ -27,6 +28,9 @@ export function generateWelcomeMessages(
   const apiKeySet = isFullConfig
     ? Boolean(config.llm.api_key || process.env.MISTRAL_API_KEY)
     : config.apiKeySet;
+  const pveTokenSet = isFullConfig
+    ? Boolean(config.pve.token_secret || process.env.MISTRAL_PVE_TOKEN_SECRET) || isLocalPveHost()
+    : config.pveTokenSet;
   const pveHost = isFullConfig ? config.pve.host : config.pveHost;
   const pveNode = isFullConfig ? config.pve.node : config.pveNode;
   const watched = isFullConfig ? config.daemon.watched_vmids : config.watchedVmids;
@@ -40,6 +44,7 @@ export function generateWelcomeMessages(
 
   lines.push(`Model: ${provider}/${model} (temp ${temp})`);
   lines.push(`API key: ${apiKeySet ? "configured ✓" : "NOT SET — use /apikey <key> or mistral setup"}`);
+  lines.push(`PVE token: ${pveTokenSet ? (isLocalPveHost() ? "local root (pvesh) ✓" : "configured ✓") : "NOT SET — remote access only"}`);
   lines.push(`PVE: ${pveHost} (node ${pveNode})`);
   lines.push(`Watched VMs: ${watched.join(", ")}`);
   lines.push(`Daemon check interval: ${interval} min`);
@@ -54,6 +59,10 @@ export function generateWelcomeMessages(
   if (!apiKeySet) {
     lines.push("");
     lines.push("⚠ Chat requires an LLM API key. PVE tools work without it.");
+  }
+  if (!pveTokenSet) {
+    lines.push("");
+    lines.push("⚠ VM tools need local PVE host access or an API token.");
   }
 
   return lines;

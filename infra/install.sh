@@ -22,6 +22,12 @@ tee "$BIN" > /dev/null <<'EOF'
 #!/usr/bin/env bash
 export MISTRAL_CONFIG="${MISTRAL_CONFIG:-/etc/mistral/config.yaml}"
 export MISTRAL_STATE="${MISTRAL_STATE:-/var/lib/mistral/state.json}"
+if [[ -f /etc/mistral/secrets.env ]]; then
+  set -a
+  # shellcheck source=/dev/null
+  source /etc/mistral/secrets.env
+  set +a
+fi
 exec node /usr/local/lib/mistral/packages/cli/dist/index.js "$@"
 EOF
 chmod +x "$BIN"
