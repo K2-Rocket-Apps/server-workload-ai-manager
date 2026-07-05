@@ -10,32 +10,45 @@ import { EmptyState } from "../common/EmptyState.js";
 
 const VM_COLUMNS: DataTableColumn<VmRow>[] = [
   { key: "vmid", header: "ID", width: 5, align: "right" },
-  { key: "name", header: "Name", width: 14, render: (r) => truncate(r.name, 14) },
+  { key: "name", header: "Name", width: 12, render: (r) => truncate(r.name, 12) },
+  {
+    key: "os",
+    header: "OS",
+    width: 10,
+    render: (r) => truncate(r.osLabel ?? "—", 10),
+  },
   {
     key: "status",
     header: "Status",
-    width: 10,
+    width: 8,
     render: (r) => r.status,
   },
   {
     key: "cpu",
     header: "CPU",
-    width: 6,
+    width: 5,
     align: "right",
     render: (r) => (r.cpuPercent != null ? formatPercent(r.cpuPercent, undefined, 0) : "—"),
   },
   {
     key: "mem",
     header: "RAM",
-    width: 6,
+    width: 5,
     align: "right",
     render: (r) => (r.memPercent != null ? formatPercent(r.memPercent, undefined, 0) : "—"),
   },
   {
-    key: "issues",
-    header: "Issues",
-    width: 8,
-    render: (r) => (r.issues.length ? String(r.issues.length) : "—"),
+    key: "cores",
+    header: "C",
+    width: 3,
+    align: "right",
+    render: (r) => (r.cpus != null ? String(r.cpus) : "—"),
+  },
+  {
+    key: "ga",
+    header: "GA",
+    width: 3,
+    render: (r) => (r.guestAgent ? "✓" : "·"),
   },
 ];
 

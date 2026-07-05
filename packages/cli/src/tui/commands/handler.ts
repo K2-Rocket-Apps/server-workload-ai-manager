@@ -6,6 +6,7 @@ import type { TabId, UiMessage } from "../types.js";
 import { listThemeNames, type ThemeName } from "../core/theme.js";
 import { exportMessages, type ExportFormat } from "../features/export-chat.js";
 import { formatBindingsHelp } from "../core/keybindings.js";
+import { parseHealthReport } from "../hooks/use-vms.js";
 import {
   formatHelpText,
   LLM_MODELS,
@@ -194,14 +195,19 @@ export async function executeSlashCommand(line: string, ctx: CommandContext): Pr
       try {
         const config = await loadConfig();
         const registry = new ToolRegistry(config);
-        const raw = await registry.execute("pve_health_report", {});
-        const data = JSON.parse(raw) as {
-          vms: Array<{ vmid: number; name: string; status: string; issues: string[] }>;
-        };
-        const lines = data.vms.map(
-          (v) => `  VM ${v.vmid} ${v.name} [${v.status}] — ${v.issues.join(", ") || "ok"}`,
-        );
-        ctx.addSystem(["Health report:", ...lines].join("\n"));
+        const raw = await registry.execute("pve_health_report", { all: true, quick: true });
+        const parsed = parseHealthReport(raw);
+        if (!parsed.vms.length) {
+          ctx.addSystem(parsed.formatted || "No VMs found. Run /test-pve");
+          return true;
+        }
+        const lines = parsed.vms.map((v) => {
+          const os = v.osLabel ?? "—";
+          const cpu = v.cpuPercent != null ? `${v.cpuPercent}%` : "—";
+          const ram = v.memPercent != null ? `${v.memPercent}%` : "—";
+          return `  VM ${v.vmid} ${v.name} [${v.status}] ${os} CPU ${cpu} RAM ${ram} — ${v.issues.join(", ") || "ok"}`;
+        });
+        ctx.addSystem(["VM inventory:", ...lines].join("\n"));
       } catch (err) {
         ctx.addSystem(`Report failed: ${(err as Error).message}`);
       } finally {

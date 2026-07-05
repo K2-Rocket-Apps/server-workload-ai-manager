@@ -42,6 +42,7 @@ function MistralAppInner({ onExit }: InnerProps) {
   const modal = useAppSelector((s) => s.modal);
   const welcomeShown = useAppSelector((s) => s.welcomeShown);
   const configStatus = useAppSelector((s) => s.configStatus);
+  const vms = useAppSelector((s) => s.vms);
 
   useTerminalDispatch();
   const { reload } = useConfigLoader();
@@ -63,6 +64,12 @@ function MistralAppInner({ onExit }: InnerProps) {
       dispatch({ type: "SET_WELCOME_SHOWN", shown: true });
     }
   }, [welcomeShown, configStatus, dispatch]);
+
+  useEffect(() => {
+    if (configStatus && vms.length === 0 && !state.vmsLoading) {
+      void refreshVms();
+    }
+  }, [configStatus, refreshVms, state.vmsLoading, vms.length]);
 
   useEffect(() => {
     if (tab === "dashboard" || tab === "vms") {

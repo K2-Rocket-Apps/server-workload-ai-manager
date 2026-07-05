@@ -13,6 +13,7 @@ import {
 import { startToolLog } from "../state/reducer.js";
 import { useAppDispatch, useAppState } from "../state/context.js";
 import type { PendingApproval } from "../types.js";
+import { fetchVmInventory } from "./use-vms.js";
 
 export type AgentHooks = {
   sendChat: (text: string) => Promise<void>;
@@ -32,9 +33,11 @@ function buildCommandContext(dispatch: AppDispatch, onExit: () => void, getState
       try {
         const config = await loadConfig();
         const registry = new ToolRegistry(config);
-        const raw = await registry.execute("pve_health_report", {});
-        const { parseHealthReport } = await import("../hooks/use-vms.js");
-        const parsed = parseHealthReport(raw);
+        const parsed = await fetchVmInventory(registry);
+        if (parsed.error && !parsed.vms.length) {
+          dispatch({ type: "VMS_LOAD_ERROR", error: parsed.error });
+          return;
+        }
         dispatch({
           type: "VMS_LOAD_SUCCESS",
           vms: parsed.vms,

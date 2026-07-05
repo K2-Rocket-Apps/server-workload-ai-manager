@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { Box, Text } from "ink";
 import { useAppSelector } from "../../state/context.js";
-import { DEFAULT_WATCHED_VMS } from "../../core/constants.js";
 import { getTheme, severityColor } from "../../core/theme.js";
 import { sparkline } from "../../render/sparkline.js";
 import { Divider } from "../common/Divider.js";
@@ -20,6 +19,8 @@ export function VmDashboard({ selectedVmid, height }: VmDashboardProps) {
   const nodeStats = useAppSelector((s) => s.nodeStats);
   const vms = useAppSelector((s) => s.vms);
   const vmsLoading = useAppSelector((s) => s.vmsLoading);
+  const vmsError = useAppSelector((s) => s.vmsError);
+  const config = useAppSelector((s) => s.configStatus);
   const vmReportRaw = useAppSelector((s) => s.vmReportRaw);
   const theme = getTheme(themeName);
 
@@ -28,7 +29,7 @@ export function VmDashboard({ selectedVmid, height }: VmDashboardProps) {
     [vms],
   );
 
-  const firstVmid = selectedVmid ?? vms[0]?.vmid ?? DEFAULT_WATCHED_VMS[0]?.vmid;
+  const firstVmid = selectedVmid ?? vms[0]?.vmid;
 
   return (
     <Box flexDirection="column" height={height} overflow="hidden">
@@ -60,8 +61,12 @@ export function VmDashboard({ selectedVmid, height }: VmDashboardProps) {
 
       <Divider label="VM List" theme={theme} width={60} />
 
+      {vmsError ? (
+        <Text color={theme.tokens.error}>PVE error: {vmsError}</Text>
+      ) : null}
+
       {vmsLoading ? (
-        <SpinnerLine label="Fetching VM health…" theme={theme} />
+        <SpinnerLine label="Loading VMs from Proxmox…" theme={theme} />
       ) : (
         <VmTable maxRows={12} />
       )}
@@ -72,18 +77,23 @@ export function VmDashboard({ selectedVmid, height }: VmDashboardProps) {
         </Box>
       ) : null}
 
-      {vmReportRaw && !vms.length ? (
+      {vmReportRaw && !vms.length && !vmsLoading ? (
         <Box marginTop={1} flexDirection="column">
-          <Text color={theme.tokens.textMuted}>raw report</Text>
-          <Text wrap="wrap">{vmReportRaw.slice(0, 500)}</Text>
+          <Text color={theme.tokens.warning}>No VMs loaded</Text>
+          <Text wrap="wrap" dimColor>
+            {vmReportRaw.slice(0, 400)}
+          </Text>
+          <Text dimColor>Check PVE token: mistral setup · /test-pve</Text>
         </Box>
       ) : null}
 
-      <Box marginTop={1}>
-        <Text color={severityColor(theme, vms.some((v) => v.issues.length) ? "warn" : "ok")}>
-          Watched: {DEFAULT_WATCHED_VMS.map((v) => `${v.vmid}`).join(", ")}
-        </Text>
-      </Box>
+      {config?.watchedVmids?.length ? (
+        <Box marginTop={1}>
+          <Text color={severityColor(theme, vms.some((v) => v.issues.length) ? "warn" : "ok")} dimColor>
+            Daemon watches: {config.watchedVmids.join(", ")} · showing all {vms.length} VM(s)
+          </Text>
+        </Box>
+      ) : null}
     </Box>
   );
 }

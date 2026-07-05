@@ -2,7 +2,7 @@ import { Box, Text } from "ink";
 import { useAppSelector } from "../../state/context.js";
 import type { Theme } from "../../core/theme.js";
 import { getTheme, severityColor } from "../../core/theme.js";
-import { formatPercent, joinNonEmpty, truncate } from "../../core/format.js";
+import { formatPercent, formatBytes, formatUptime, truncate, joinNonEmpty } from "../../core/format.js";
 import { KeyValueTable } from "../../render/table.js";
 import type { VmRow } from "../../types.js";
 import { Badge } from "../common/Badge.js";
@@ -22,20 +22,30 @@ export function VmDetailCard({ vm, theme, width = 48 }: VmDetailCardProps) {
   const pairs = [
     { label: "VMID", value: String(vm.vmid) },
     { label: "Name", value: vm.name },
+    { label: "OS", value: vm.osLabel ?? vm.ostype ?? "—" },
     { label: "Node", value: vm.node },
     { label: "Status", value: vm.status },
+    { label: "vCPUs", value: vm.cpus != null ? String(vm.cpus) : "—" },
     { label: "Guest Agent", value: vm.guestAgent ? "yes ✓" : "no" },
     {
-      label: "CPU",
+      label: "CPU use",
       value: vm.cpuPercent != null ? formatPercent(vm.cpuPercent, undefined, 1) : "—",
     },
     {
-      label: "Memory",
+      label: "RAM use",
       value: vm.memPercent != null ? formatPercent(vm.memPercent, undefined, 1) : "—",
+    },
+    {
+      label: "RAM alloc",
+      value: vm.maxmem != null ? formatBytes(vm.maxmem) : "—",
     },
     {
       label: "Disk",
       value: vm.diskPercent != null ? formatPercent(vm.diskPercent, undefined, 1) : "—",
+    },
+    {
+      label: "Uptime",
+      value: vm.uptime != null ? formatUptime(vm.uptime) : "—",
     },
     { label: "IPs", value: vm.ips?.join(", ") ?? "—" },
   ];

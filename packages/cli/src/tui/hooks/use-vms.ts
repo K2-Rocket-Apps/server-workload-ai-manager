@@ -3,6 +3,7 @@ import { loadConfig } from "@mistral/core";
 import { ToolRegistry } from "@mistral/mcp";
 import { useAppDispatch, useAppState } from "../state/context.js";
 import type { NodeStats, VmRow } from "../types.js";
+import { formatUptime } from "../core/format.js";
 
 type HealthReportJson = {
   generatedAt?: string;
@@ -18,6 +19,13 @@ type HealthReportJson = {
     diskPercent?: number;
     issues?: string[];
     ips?: string[];
+    ostype?: string;
+    osLabel?: string;
+    cpus?: number;
+    maxmem?: number;
+    maxdisk?: number;
+    memUsed?: number;
+    uptime?: number;
   }>;
   nodeStatus?: {
     node: string;
@@ -31,25 +39,41 @@ type HealthReportJson = {
   };
 };
 
+export function mapVmFromReport(v: NonNullable<HealthReportJson["vms"]>[number]): VmRow {
+  return {
+    vmid: v.vmid,
+    name: v.name,
+    status: v.status,
+    node: v.node,
+    guestAgent: Boolean(v.guestAgentAlive),
+    cpuPercent: v.cpuPercent,
+    memPercent: v.memPercent,
+    diskPercent: v.diskPercent,
+    issues: v.issues ?? [],
+    ips: v.ips,
+    osLabel: v.osLabel ?? v.ostype,
+    ostype: v.ostype,
+    cpus: v.cpus,
+    maxmem: v.maxmem,
+    maxdisk: v.maxdisk,
+    memUsed: v.memUsed,
+    uptime: v.uptime,
+  };
+}
+
 export function parseHealthReport(raw: string): {
   vms: VmRow[];
   nodeStats: NodeStats | null;
   formatted: string;
+  error?: string;
 } {
   try {
-    const data = JSON.parse(raw) as HealthReportJson;
-    const vms: VmRow[] = (data.vms ?? []).map((v) => ({
-      vmid: v.vmid,
-      name: v.name,
-      status: v.status,
-      node: v.node,
-      guestAgent: Boolean(v.guestAgentAlive),
-      cpuPercent: v.cpuPercent,
-      memPercent: v.memPercent,
-      diskPercent: v.diskPercent,
-      issues: v.issues ?? [],
-      ips: v.ips,
-    }));
+    const data = JSON.parse(raw) as HealthReportJson & { error?: string };
+    if (data.error) {
+      return { vms: [], nodeStats: null, formatted: raw, error: String(data.error) };
+    }
+
+    const vms: VmRow[] = (data.vms ?? []).map(mapVmFromReport);
 
     let nodeStats: NodeStats | null = null;
     if (data.nodeStatus) {
@@ -57,7 +81,7 @@ export function parseHealthReport(raw: string): {
       nodeStats = {
         node: ns.node,
         status: ns.status,
-        cpuPercent: ns.maxcpu ? (ns.cpu / ns.maxcpu) * 100 : ns.cpu,
+        cpuPercent: ns.maxcpu ? (ns.cpu / ns.maxcpu) * 100 : ns.cpu * 100,
         memPercent: ns.maxmem ? (ns.mem / ns.maxmem) * 100 : 0,
         uptime: ns.uptime,
         loadavg: ns.loadavg ?? [],
@@ -66,16 +90,21 @@ export function parseHealthReport(raw: string): {
 
     const lines = vms.map((v) => {
       const issues = v.issues.length ? v.issues.join(", ") : "ok";
-      const ga = v.guestAgent ? "GA✓" : "GA✗";
-      return `  VM ${v.vmid} ${v.name} [${v.status}] ${ga} — ${issues}`;
+      const ga = v.guestAgent ? "GA✓" : "GA·";
+      const os = v.osLabel ?? "—";
+      const cpu = v.cpuPercent != null ? `${v.cpuPercent}%` : "—";
+      const ram = v.memPercent != null ? `${v.memPercent}%` : "—";
+      const cores = v.cpus != null ? `${v.cpus}c` : "";
+      return `  VM ${v.vmid} ${v.name} [${v.status}] ${os} ${cores} CPU ${cpu} RAM ${ram} ${ga} — ${issues}`;
     });
 
     const header = [
-      `Health @ ${data.generatedAt ?? "unknown"}`,
+      `Inventory @ ${data.generatedAt ?? "unknown"}`,
       data.node ? `Node: ${data.node}` : "",
       nodeStats
-        ? `CPU ${nodeStats.cpuPercent.toFixed(0)}%  MEM ${nodeStats.memPercent.toFixed(0)}%  uptime ${nodeStats.uptime}s`
+        ? `Host CPU ${nodeStats.cpuPercent.toFixed(0)}%  RAM ${nodeStats.memPercent.toFixed(0)}%  up ${formatUptime(nodeStats.uptime)}`
         : "",
+      vms.length ? `${vms.length} VM(s)` : "No VMs returned — check PVE token",
     ].filter(Boolean);
 
     return {
@@ -84,8 +113,30 @@ export function parseHealthReport(raw: string): {
       formatted: [...header, ...lines].join("\n"),
     };
   } catch {
-    return { vms: [], nodeStats: null, formatted: raw };
+    return { vms: [], nodeStats: null, formatted: raw, error: "Invalid PVE response" };
   }
+}
+
+/** Load all VMs via fast inventory (no guest-agent probes). */
+export async function fetchVmInventory(
+  registry: { execute: (name: string, args: Record<string, unknown>) => Promise<string> },
+): Promise<{ vms: VmRow[]; nodeStats: NodeStats | null; formatted: string; error?: string }> {
+  const raw = await registry.execute("pve_health_report", { all: true, quick: true });
+  return parseHealthReport(raw);
+}
+
+/** Format VM rows as a compact table string for the logs tab. */
+export function formatVmTable(rows: VmRow[]): string {
+  if (!rows.length) return "No VMs loaded.";
+  const header = "VMID  NAME              OS           CPU   RAM   STATUS";
+  const lines = rows.map((v) => {
+    const name = v.name.slice(0, 16).padEnd(16);
+    const os = (v.osLabel ?? "—").slice(0, 12).padEnd(12);
+    const cpu = v.cpuPercent != null ? `${v.cpuPercent}%`.padStart(4) : "  — ";
+    const ram = v.memPercent != null ? `${v.memPercent}%`.padStart(4) : "  — ";
+    return `${String(v.vmid).padEnd(5)} ${name} ${os} ${cpu} ${ram} ${v.status}`;
+  });
+  return [header, ...lines].join("\n");
 }
 
 export type UseVmsResult = {
@@ -106,8 +157,11 @@ export function useVms(): UseVmsResult {
     try {
       const config = await loadConfig();
       const registry = new ToolRegistry(config);
-      const raw = await registry.execute("pve_health_report", {});
-      const parsed = parseHealthReport(raw);
+      const parsed = await fetchVmInventory(registry);
+      if (parsed.error && !parsed.vms.length) {
+        dispatch({ type: "VMS_LOAD_ERROR", error: parsed.error });
+        return;
+      }
       dispatch({
         type: "VMS_LOAD_SUCCESS",
         vms: parsed.vms,
@@ -127,17 +181,4 @@ export function useVms(): UseVmsResult {
     vmsError,
     refreshVms,
   };
-}
-
-/** Format VM rows as a compact table string for the logs tab. */
-export function formatVmTable(rows: VmRow[]): string {
-  if (!rows.length) return "No VMs loaded.";
-  const header = "VMID  NAME              STATUS    GA   ISSUES";
-  const lines = rows.map((v) => {
-    const name = v.name.slice(0, 16).padEnd(16);
-    const ga = v.guestAgent ? "yes" : "no ";
-    const issues = v.issues.join("; ") || "ok";
-    return `${String(v.vmid).padEnd(5)} ${name} ${v.status.padEnd(8)} ${ga}   ${issues}`;
-  });
-  return [header, ...lines].join("\n");
 }

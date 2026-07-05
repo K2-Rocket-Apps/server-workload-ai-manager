@@ -176,6 +176,74 @@ export class PveClient {
     };
   }
 
+  /** Fast inventory of all VMs — no guest-agent probes (for TUI dashboard). */
+  async inventoryReport(): Promise<HealthReport> {
+    const node = this.defaultNode;
+    const [nodeStatus, vms] = await Promise.all([
+      this.nodeStatus(node).catch(() => undefined),
+      this.listVms(node),
+    ]);
+
+    const reports = await Promise.all(
+      vms.map(async (vm) => {
+        const enriched = await this.enrichVmFromConfig(vm);
+        const issues: string[] = [];
+        if (vm.status !== "running") issues.push(`VM is ${vm.status}`);
+
+        const cpuPercent = vm.cpu !== undefined ? Math.round(vm.cpu * 100) : undefined;
+        const memPercent =
+          vm.mem !== undefined && vm.maxmem ? Math.round((vm.mem / vm.maxmem) * 100) : undefined;
+
+        return {
+          vmid: vm.vmid,
+          name: vm.name,
+          status: vm.status,
+          node: vm.node,
+          guestAgentAlive: false,
+          cpuPercent,
+          memPercent,
+          diskPercent: undefined,
+          issues,
+          ips: [],
+          ostype: enriched.ostype,
+          osLabel: enriched.osLabel,
+          cpus: enriched.cpus ?? vm.cpus,
+          maxmem: vm.maxmem,
+          maxdisk: vm.maxdisk,
+          uptime: vm.uptime,
+          memUsed: vm.mem,
+        } satisfies HealthVmReport;
+      }),
+    );
+
+    return {
+      generatedAt: new Date().toISOString(),
+      node,
+      nodeStatus,
+      vms: reports,
+    };
+  }
+
+  private async enrichVmFromConfig(vm: VmSummary): Promise<{
+    ostype?: string;
+    osLabel?: string;
+    cpus?: number;
+  }> {
+    try {
+      const config = await this.get<JsonRecord>(
+        `/nodes/${vm.node}/qemu/${vm.vmid}/config`,
+      );
+      const ostype = config.ostype ? String(config.ostype) : undefined;
+      return {
+        ostype,
+        osLabel: ostype ? formatOstype(ostype) : undefined,
+        cpus: config.cores ? Number(config.cores) : vm.cpus,
+      };
+    } catch {
+      return { cpus: vm.cpus };
+    }
+  }
+
   private async checkVmHealth(vm: VmSummary): Promise<HealthVmReport> {
     const issues: string[] = [];
     const guestAgentAlive = vm.status === "running" ? await this.guestAgentPing(vm.vmid, vm.node) : false;
@@ -301,6 +369,25 @@ export class PveClient {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+const OSTYPE_LABELS: Record<string, string> = {
+  other: "Other",
+  wxp: "Windows XP",
+  w2k: "Windows 2000",
+  w2k3: "Windows 2003",
+  w2k8: "Windows 2008",
+  win7: "Windows 7",
+  win8: "Windows 8",
+  win10: "Windows 10",
+  win11: "Windows 11",
+  l24: "Linux 2.4",
+  l26: "Linux",
+  solaris: "Solaris",
+};
+
+function formatOstype(ostype: string): string {
+  return OSTYPE_LABELS[ostype] ?? ostype;
 }
 
 export function createPveClient(config: PveConfig): PveClient {

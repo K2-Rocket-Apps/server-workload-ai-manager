@@ -59,6 +59,14 @@ export interface HealthVmReport {
   diskPercent?: number;
   issues: string[];
   ips?: string[];
+  /** OS type from PVE config e.g. l26, win11 */
+  ostype?: string;
+  osLabel?: string;
+  cpus?: number;
+  maxmem?: number;
+  maxdisk?: number;
+  uptime?: number;
+  memUsed?: number;
 }
 
 export interface HealthReport {

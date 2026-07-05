@@ -101,6 +101,13 @@ export type VmRow = {
   diskPercent?: number;
   issues: string[];
   ips?: string[];
+  osLabel?: string;
+  ostype?: string;
+  cpus?: number;
+  maxmem?: number;
+  maxdisk?: number;
+  memUsed?: number;
+  uptime?: number;
 };
 
 export type NodeStats = {

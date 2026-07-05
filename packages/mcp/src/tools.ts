@@ -44,6 +44,8 @@ export class ToolRegistry {
       tool("pve_console_url", "Get noVNC console URL for a VM.", { vmid: { type: "integer" } }, ["vmid"]),
       tool("pve_health_report", "Structured health snapshot for watched VMs.", {
         vmids: { type: "array", items: { type: "integer" }, description: "Optional VM IDs to check" },
+        all: { type: "boolean", description: "Include all VMs (not just watched)" },
+        quick: { type: "boolean", description: "Skip guest-agent probes (fast inventory)" },
       }),
       tool("pve_vm_start", "Start a VM. Requires approval.", {
         vmid: { type: "integer" },
@@ -117,6 +119,9 @@ export class ToolRegistry {
       pve_guest_get_ips: async (a) => ({ ips: await this.pve.guestGetIps(Number(a.vmid)) }),
       pve_console_url: async (a) => ({ url: this.pve.consoleUrl(Number(a.vmid)) }),
       pve_health_report: async (a) => {
+        if (a.all || a.quick) {
+          return this.pve.inventoryReport();
+        }
         const vmids = a.vmids as number[] | undefined;
         return this.pve.healthReport(vmids ?? this.config.daemon.watched_vmids);
       },

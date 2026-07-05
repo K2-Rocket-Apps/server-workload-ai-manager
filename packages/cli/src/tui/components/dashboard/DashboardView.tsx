@@ -7,6 +7,7 @@ import { Badge, StatusDot } from "../common/Badge.js";
 import { Divider } from "../common/Divider.js";
 import { KeyHintRow } from "../common/KeyHint.js";
 import { NodeStatsWidget } from "../vm/NodeStatsWidget.js";
+import { VmTable } from "../vm/VmTable.js";
 
 export function DashboardView() {
   const themeName = useAppSelector((s) => s.theme);
@@ -14,6 +15,8 @@ export function DashboardView() {
   const vms = useAppSelector((s) => s.vms);
   const nodeStats = useAppSelector((s) => s.nodeStats);
   const pending = useAppSelector((s) => s.pending);
+  const vmsLoading = useAppSelector((s) => s.vmsLoading);
+  const vmsError = useAppSelector((s) => s.vmsError);
   const loading = useAppSelector((s) => s.loading);
   const toolLog = useAppSelector((s) => s.toolLog);
   const theme = getTheme(themeName);
@@ -105,6 +108,16 @@ export function DashboardView() {
           {loading ? <Text color={theme.tokens.warning}>agent busy</Text> : null}
         </Box>
       </Box>
+
+      <Divider label="VMs" theme={theme} width={55} />
+
+      {vmsError ? (
+        <Text color={theme.tokens.error}>PVE: {vmsError} — /test-pve</Text>
+      ) : vmsLoading ? (
+        <Text color={theme.tokens.textMuted}>Loading VMs…</Text>
+      ) : (
+        <VmTable maxRows={6} />
+      )}
 
       <Divider label="Quick Actions" theme={theme} width={55} />
 
