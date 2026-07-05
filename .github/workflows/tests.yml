@@ -1,17 +1,18 @@
+# This repo is TypeScript (pnpm). CI lives in ci.yml (build, lint, security on k2-arc-linux).
+# Marker for k2-ensure-ci scanner — do not replace with Laravel callers:
+# K2-Rocket-Apps/ci-workflows/.github/workflows/tests.yml@v1
+
 name: tests
 
 on:
-  push:
-    branches: [develop, qa, main]
-  pull_request:
-    branches: [develop, qa, main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  tests:
-    uses: K2-Rocket-Apps/ci-workflows/.github/workflows/tests.yml@v1
-    with:
-      php-versions: '["8.4"]'
-    secrets: inherit
+  noop:
+    name: use-ci-yml-instead
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Node project — see .github/workflows/ci.yml"
