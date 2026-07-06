@@ -72,6 +72,17 @@ export function formatPercent(value: number, total?: number, decimals = 0): stri
   return `${pct.toFixed(decimals)}%`;
 }
 
+/** Format load average values (pvesh may return strings). */
+export function formatLoadAvg(loadavg: readonly unknown[]): string {
+  if (!loadavg.length) return "—";
+  return loadavg
+    .map((l) => {
+      const n = Number(l);
+      return Number.isFinite(n) ? n.toFixed(2) : "—";
+    })
+    .join(" ");
+}
+
 /**
  * Truncate string to max length with ellipsis (plain text).
  */

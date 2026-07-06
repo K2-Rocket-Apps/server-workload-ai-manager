@@ -78,13 +78,17 @@ export function parseHealthReport(raw: string): {
     let nodeStats: NodeStats | null = null;
     if (data.nodeStatus) {
       const ns = data.nodeStatus;
+      const cpu = Number(ns.cpu);
+      const maxcpu = Number(ns.maxcpu);
+      const mem = Number(ns.mem);
+      const maxmem = Number(ns.maxmem);
       nodeStats = {
         node: ns.node,
         status: ns.status,
-        cpuPercent: ns.maxcpu ? (ns.cpu / ns.maxcpu) * 100 : ns.cpu * 100,
-        memPercent: ns.maxmem ? (ns.mem / ns.maxmem) * 100 : 0,
-        uptime: ns.uptime,
-        loadavg: ns.loadavg ?? [],
+        cpuPercent: maxcpu ? (cpu / maxcpu) * 100 : cpu * 100,
+        memPercent: maxmem ? (mem / maxmem) * 100 : 0,
+        uptime: Number(ns.uptime) || 0,
+        loadavg: (ns.loadavg ?? []).map((l) => Number(l)).filter((n) => Number.isFinite(n)),
       };
     }
 

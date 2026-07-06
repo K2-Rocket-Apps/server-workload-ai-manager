@@ -1,7 +1,7 @@
 import { Box, Text } from "ink";
 import type { Theme } from "../../core/theme.js";
 import { getTheme, severityColor } from "../../core/theme.js";
-import { formatPercent, formatUptime } from "../../core/format.js";
+import { formatPercent, formatUptime, formatLoadAvg } from "../../core/format.js";
 import { percentBar, sparkline } from "../../render/sparkline.js";
 import { ProgressBar } from "../../render/progress.js";
 import type { NodeStats } from "../../types.js";
@@ -76,7 +76,7 @@ export function NodeStatsWidget({
       {stats.loadavg.length > 0 ? (
         <Box flexDirection="row" justifyContent="space-between">
           <Text color={resolved.tokens.textMuted}>load</Text>
-          <Text>{stats.loadavg.map((l) => l.toFixed(2)).join(" ")}</Text>
+          <Text>{formatLoadAvg(stats.loadavg)}</Text>
         </Box>
       ) : null}
     </Box>

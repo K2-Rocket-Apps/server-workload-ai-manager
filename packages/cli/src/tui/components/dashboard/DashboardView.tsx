@@ -1,7 +1,7 @@
 import { Box, Text } from "ink";
 import { useAppSelector } from "../../state/context.js";
 import { TAB_DEFINITIONS } from "../../core/constants.js";
-import { formatPercent } from "../../core/format.js";
+import { formatPercent, formatLoadAvg } from "../../core/format.js";
 import { getTheme, severityColor } from "../../core/theme.js";
 import { Badge, StatusDot } from "../common/Badge.js";
 import { Divider } from "../common/Divider.js";
@@ -140,7 +140,7 @@ export function DashboardView() {
       {nodeStats ? (
         <Box marginTop={1}>
           <Text color={theme.tokens.textMuted}>
-            Node load avg: {nodeStats.loadavg.map((l) => l.toFixed(2)).join(" ")} · CPU{" "}
+            Node load avg: {formatLoadAvg(nodeStats.loadavg)} · CPU{" "}
             {formatPercent(nodeStats.cpuPercent, undefined, 0)}
           </Text>
         </Box>

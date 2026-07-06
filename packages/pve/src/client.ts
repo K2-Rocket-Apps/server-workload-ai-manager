@@ -65,7 +65,7 @@ export class PveClient {
       mem: Number(data.mem ?? 0),
       maxmem: Number(data.maxmem ?? 0),
       uptime: Number(data.uptime ?? 0),
-      loadavg: (data.loadavg as number[]) ?? [],
+      loadavg: toNumArray(data.loadavg),
     };
   }
 
@@ -311,13 +311,13 @@ export class PveClient {
       name: String(row.name ?? `vm-${vmid}`),
       status: String(row.status ?? "unknown"),
       node,
-      cpus: row.cpus as number | undefined,
-      maxmem: row.maxmem as number | undefined,
-      maxdisk: row.maxdisk as number | undefined,
-      uptime: row.uptime as number | undefined,
-      cpu: row.cpu as number | undefined,
-      mem: row.mem as number | undefined,
-      disk: row.disk as number | undefined,
+      cpus: row.cpus != null ? toNum(row.cpus) : undefined,
+      maxmem: row.maxmem != null ? toNum(row.maxmem) : undefined,
+      maxdisk: row.maxdisk != null ? toNum(row.maxdisk) : undefined,
+      uptime: row.uptime != null ? toNum(row.uptime) : undefined,
+      cpu: row.cpu != null ? toNum(row.cpu) : undefined,
+      mem: row.mem != null ? toNum(row.mem) : undefined,
+      disk: row.disk != null ? toNum(row.disk) : undefined,
     };
   }
 
@@ -398,6 +398,16 @@ export class PveClient {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+function toNum(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function toNumArray(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((v) => toNum(v));
 }
 
 const OSTYPE_LABELS: Record<string, string> = {
