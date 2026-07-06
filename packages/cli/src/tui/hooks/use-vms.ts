@@ -1,5 +1,6 @@
 import { useCallback, useRef } from "react";
 import { loadConfig } from "@mistral/core";
+import { hostCpuToPercent } from "@mistral/pve";
 import { ToolRegistry } from "@mistral/mcp";
 import { useAppDispatch, useAppState } from "../state/context.js";
 import type { NodeStats, VmRow } from "../types.js";
@@ -79,13 +80,12 @@ export function parseHealthReport(raw: string): {
     if (data.nodeStatus) {
       const ns = data.nodeStatus;
       const cpu = Number(ns.cpu);
-      const maxcpu = Number(ns.maxcpu);
       const mem = Number(ns.mem);
       const maxmem = Number(ns.maxmem);
       nodeStats = {
         node: ns.node,
         status: ns.status,
-        cpuPercent: maxcpu ? (cpu / maxcpu) * 100 : cpu * 100,
+        cpuPercent: hostCpuToPercent(cpu),
         memPercent: maxmem ? (mem / maxmem) * 100 : 0,
         uptime: Number(ns.uptime) || 0,
         loadavg: (ns.loadavg ?? []).map((l) => Number(l)).filter((n) => Number.isFinite(n)),

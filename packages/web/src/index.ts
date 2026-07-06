@@ -18,7 +18,7 @@ import {
   detectLanIp,
   detectTailscaleIp,
 } from "@mistral/core";
-import { createPveClient, isLocalPveHost } from "@mistral/pve";
+import { createPveClient, isLocalPveHost, hostCpuToPercent } from "@mistral/pve";
 import { AlertDispatcher } from "@mistral/alerts";
 import { loadState } from "@mistral/daemon";
 import { APP_CSS, APP_JS, DASHBOARD_PAGE, LOGIN_PAGE } from "./ui/assets.js";
@@ -113,9 +113,7 @@ async function fetchDashboardData(config: AppConfig) {
     const report = await pve.inventoryReport();
     const nodeStatus = report.nodeStatus
       ? {
-          cpuPercent: report.nodeStatus.maxcpu
-            ? (report.nodeStatus.cpu / report.nodeStatus.maxcpu) * 100
-            : report.nodeStatus.cpu * 100,
+          cpuPercent: hostCpuToPercent(report.nodeStatus.cpu),
           memPercent: report.nodeStatus.maxmem
             ? (report.nodeStatus.mem / report.nodeStatus.maxmem) * 100
             : 0,

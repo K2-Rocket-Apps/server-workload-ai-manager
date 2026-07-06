@@ -1,5 +1,6 @@
 import { Agent, fetch as undiciFetch } from "undici";
 import { isLocalPveHost, pveshCall } from "./local.js";
+import { memToPercent, vmCpuToPercent } from "./metrics.js";
 import type {
   GuestExecResult,
   GuestExecStatus,
@@ -38,8 +39,42 @@ export class PveClient {
 
   async listVms(node?: string): Promise<VmSummary[]> {
     const n = node ?? this.defaultNode;
+
+    try {
+      const resources = await this.get<unknown[]>("/cluster/resources", { type: "vm" });
+      const rows = (resources ?? [])
+        .map((row) => row as JsonRecord)
+        .filter((row) => String(row.node ?? n) === n);
+      if (rows.length > 0) {
+        return rows.map((row) => this.mapVm(row, String(row.node ?? n)));
+      }
+    } catch {
+      // Fall back to per-node list (older clusters / restricted tokens).
+    }
+
     const data = await this.get<unknown[]>(`/nodes/${n}/qemu`);
-    return (data ?? []).map((row) => this.mapVm(row as JsonRecord, n));
+    const summaries = (data ?? []).map((row) => this.mapVm(row as JsonRecord, n));
+
+    const needsStats = summaries.filter(
+      (v) => v.status === "running" && (v.cpu === undefined || v.cpu === 0),
+    );
+    if (needsStats.length > 0) {
+      await Promise.all(
+        needsStats.map(async (vm) => {
+          try {
+            const st = await this.get<JsonRecord>(`/nodes/${n}/qemu/${vm.vmid}/status/current`);
+            if (st.cpu != null) vm.cpu = toNum(st.cpu);
+            if (st.mem != null) vm.mem = toNum(st.mem);
+            if (st.maxmem != null) vm.maxmem = toNum(st.maxmem);
+            if (st.uptime != null) vm.uptime = toNum(st.uptime);
+          } catch {
+            /* VM may have stopped mid-fetch */
+          }
+        }),
+      );
+    }
+
+    return summaries;
   }
 
   async vmStatus(vmid: number, node?: string): Promise<VmStatus> {
@@ -198,9 +233,8 @@ export class PveClient {
         const issues: string[] = [];
         if (vm.status !== "running") issues.push(`VM is ${vm.status}`);
 
-        const cpuPercent = vm.cpu !== undefined ? Math.round(vm.cpu * 100) : undefined;
-        const memPercent =
-          vm.mem !== undefined && vm.maxmem ? Math.round((vm.mem / vm.maxmem) * 100) : undefined;
+        const cpuPercent = vmCpuToPercent(vm.cpu);
+        const memPercent = memToPercent(vm.mem, vm.maxmem);
 
         return {
           vmid: vm.vmid,
@@ -282,8 +316,8 @@ export class PveClient {
       }
     }
 
-    const cpuPercent = vm.cpu !== undefined ? Math.round(vm.cpu * 100) : undefined;
-    const memPercent = vm.mem !== undefined && vm.maxmem ? Math.round((vm.mem / vm.maxmem) * 100) : undefined;
+    const cpuPercent = vmCpuToPercent(vm.cpu);
+    const memPercent = memToPercent(vm.mem, vm.maxmem);
 
     if (cpuPercent !== undefined && cpuPercent >= 90) issues.push(`CPU high: ${cpuPercent}%`);
     if (memPercent !== undefined && memPercent >= 90) issues.push(`Memory high: ${memPercent}%`);
@@ -311,7 +345,12 @@ export class PveClient {
       name: String(row.name ?? `vm-${vmid}`),
       status: String(row.status ?? "unknown"),
       node,
-      cpus: row.cpus != null ? toNum(row.cpus) : undefined,
+      cpus:
+        row.cpus != null
+          ? toNum(row.cpus)
+          : row.maxcpu != null
+            ? toNum(row.maxcpu)
+            : undefined,
       maxmem: row.maxmem != null ? toNum(row.maxmem) : undefined,
       maxdisk: row.maxdisk != null ? toNum(row.maxdisk) : undefined,
       uptime: row.uptime != null ? toNum(row.uptime) : undefined,
