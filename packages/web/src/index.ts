@@ -162,6 +162,12 @@ export function createWebApp(getConfig: () => Promise<AppConfig>) {
 
   app.post("/api/login", async (c) => {
     const config = await getConfig();
+    if (!config.web.password_hash) {
+      return c.json(
+        { error: "Web not configured. On the server run: sudo mistral start web" },
+        503,
+      );
+    }
     const body = await c.req.json<{ username?: string; password?: string }>();
     if (
       !body.username ||

@@ -23,7 +23,7 @@ export async function runWebSetup(options: WebSetupOptions = {}): Promise<AppCon
 
   console.log("\n=== Mistral Web Dashboard Setup ===\n");
 
-  if (!options.nonInteractive) {
+  if (!options.nonInteractive || !isWebPasswordConfigured(config)) {
     const user =
       (await rl.question(`Admin username [${config.web.admin_username || "admin"}]: `)) ||
       config.web.admin_username ||
@@ -42,15 +42,16 @@ export async function runWebSetup(options: WebSetupOptions = {}): Promise<AppCon
       process.exit(1);
     }
     config.web.password_hash = hashPassword(password);
-    if (!config.web.session_secret) {
-      config.web.session_secret = generateSessionSecret();
-    }
+    config.web.session_secret = generateSessionSecret();
   } else {
-    if (!config.web.password_hash) {
-      throw new Error("Web password not set. Run: mistral start web");
+    if (!isWebPasswordConfigured(config)) {
+      throw new Error("Web password not set. Run: sudo mistral start web");
     }
     if (!config.web.admin_username) {
       config.web.admin_username = "admin";
+    }
+    if (!config.web.session_secret) {
+      config.web.session_secret = generateSessionSecret();
     }
   }
 
@@ -114,6 +115,15 @@ export function applyWebBind(config: AppConfig): AppConfig {
   return config;
 }
 
+export function isWebPasswordConfigured(config: AppConfig): boolean {
+  const hash = config.web.password_hash?.trim() ?? "";
+  if (!hash) return false;
+  const colon = hash.indexOf(":");
+  if (colon <= 0) return false;
+  const digest = hash.slice(colon + 1);
+  return digest.length >= 32;
+}
+
 export function webNeedsSetup(config: AppConfig): boolean {
-  return !config.web.password_hash || !config.web.session_secret;
+  return !isWebPasswordConfigured(config);
 }

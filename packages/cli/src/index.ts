@@ -1,6 +1,12 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { loadConfig, saveConfig, configPath, toPveConfig, runSetup, runWebSetup } from "@mistral/core";
+import {
+  loadConfig,
+  saveConfig,
+  configPath,
+  toPveConfig,
+  runSetup,
+} from "@mistral/core";
 import { createPveClient } from "@mistral/pve";
 import { ToolRegistry } from "@mistral/mcp";
 import { startStdioMcp, startHttpMcp } from "@mistral/mcp";
@@ -160,10 +166,7 @@ program
   .option("--reconfigure", "Re-run web setup wizard")
   .action(async (target: string, opts: { foreground?: boolean; reconfigure?: boolean }) => {
     if (target === "web" || target === "all") {
-      if (opts.reconfigure) {
-        await runWebSetup();
-      }
-      await runStartWeb({ foreground: opts.foreground });
+      await runStartWeb({ foreground: opts.foreground, reconfigure: opts.reconfigure });
       return;
     }
     if (target === "daemon") {

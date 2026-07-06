@@ -4,7 +4,8 @@ import {
   saveConfig,
   applyWebBind,
   runWebSetup,
-  webNeedsSetup,
+  isWebPasswordConfigured,
+  generateSessionSecret,
   type WebSetupOptions,
 } from "@mistral/core";
 import { startWebServer } from "@mistral/web";
@@ -12,6 +13,7 @@ import { startWebServer } from "@mistral/web";
 export type StartWebOptions = WebSetupOptions & {
   foreground?: boolean;
   noSystemd?: boolean;
+  reconfigure?: boolean;
 };
 
 function isRoot(): boolean {
@@ -40,11 +42,22 @@ function systemdActive(): boolean {
 export async function runStartWeb(options: StartWebOptions = {}): Promise<void> {
   let config = await loadConfig();
 
-  if (webNeedsSetup(config)) {
-    config = await runWebSetup(options);
+  if (!isWebPasswordConfigured(config)) {
+    console.log("\n⚠ Web admin password not set — setup required.\n");
+    config = await runWebSetup({ nonInteractive: false });
+  } else if (options.reconfigure) {
+    config = await runWebSetup({ nonInteractive: false });
   } else {
     config = applyWebBind(config);
+    if (!config.web.session_secret) {
+      config.web.session_secret = generateSessionSecret();
+    }
     await saveConfig(config);
+  }
+
+  if (!isWebPasswordConfigured(config)) {
+    console.error("Cannot start web UI without an admin password.");
+    process.exit(1);
   }
 
   const url = config.web.public_url ?? `http://${config.web.host}:${config.web.port}`;
