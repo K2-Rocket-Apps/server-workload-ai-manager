@@ -65,11 +65,19 @@ export function FooterBar({ slashActive = false, paletteOpen = false }: FooterBa
   const tab = useAppSelector((s) => s.tab);
   const loading = useAppSelector((s) => s.loading);
   const modal = useAppSelector((s) => s.modal);
+  const pending = useAppSelector((s) => s.pending);
   const theme = getTheme(themeName);
 
   let hints = TAB_HINTS[tab];
 
-  if (paletteOpen || slashActive) {
+  if (pending && modal.type === "none") {
+    hints = [
+      { action: KeyAction.Approve, label: "approve pending" },
+      { action: KeyAction.Deny, label: "deny" },
+      { action: KeyAction.Submit, label: "or type yes/no" },
+      { action: KeyAction.Quit, label: "quit" },
+    ];
+  } else if (paletteOpen || slashActive) {
     hints = [
       { action: KeyAction.PaletteUp, label: "prev" },
       { action: KeyAction.PaletteDown, label: "next" },

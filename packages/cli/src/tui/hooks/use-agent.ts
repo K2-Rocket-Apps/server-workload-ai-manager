@@ -194,6 +194,10 @@ export function useAgent({ onExit }: UseAgentOptions): AgentHooks {
     if (!pending) return;
 
     dispatch({ type: "SET_LOADING", loading: true });
+    const entry = startToolLog(pending.name);
+    dispatch({ type: "ADD_TOOL_LOG", entry });
+    const started = Date.now();
+
     try {
       const config = await loadConfig();
       const registry = new ToolRegistry(config);
@@ -202,19 +206,51 @@ export function useAgent({ onExit }: UseAgentOptions): AgentHooks {
         { ...pending.args, approved: true },
         { approved: true },
       );
-      const entry = startToolLog(pending.name);
+
       dispatch({
-        type: "ADD_TOOL_LOG",
-        entry: { ...entry, status: "done", outputPreview: result.slice(0, 120) },
+        type: "UPDATE_TOOL_LOG",
+        id: entry.id,
+        patch: {
+          status: "done",
+          duration: Date.now() - started,
+          outputPreview: result.slice(0, 120),
+        },
       });
-      dispatch(addSystemMessage(`Approved: ${pending.name}\n${result.slice(0, 400)}`));
       dispatch({ type: "SET_PENDING", pending: null });
+
+      const agent = new AgentLoop(config, registry.definitions(), (name, args, ctx) =>
+        registry.execute(name, args, ctx),
+      );
+      const history = stateRef.current.chatHistory;
+      const followUp = await agent.run(
+        `User approved ${pending.name}. Result:\n${result}\nSummarize the output for the user.`,
+        history,
+        {
+          approved: true,
+          onEvent: (ev) => {
+            if (ev.type === "needs_approval") {
+              handleNeedsApproval({ name: ev.name, args: ev.args });
+            }
+          },
+        },
+      );
+
+      dispatch({ type: "SET_CHAT_HISTORY", history: followUp.history });
+      dispatch(addAssistantMessage(followUp.reply));
+      if (followUp.pendingApproval) {
+        handleNeedsApproval(followUp.pendingApproval);
+      }
     } catch (err) {
+      dispatch({
+        type: "UPDATE_TOOL_LOG",
+        id: entry.id,
+        patch: { status: "error", duration: Date.now() - started },
+      });
       dispatch(addSystemMessage(`Approval failed: ${(err as Error).message}`));
     } finally {
       dispatch({ type: "SET_LOADING", loading: false });
     }
-  }, [dispatch]);
+  }, [dispatch, handleNeedsApproval]);
 
   const denyPending = useCallback(() => {
     dispatch({ type: "SET_PENDING", pending: null });

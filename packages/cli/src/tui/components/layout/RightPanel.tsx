@@ -116,7 +116,7 @@ export function RightPanel({ width, height }: RightPanelProps) {
               {JSON.stringify(pending.args, null, 0).slice(0, innerW - 2)}
             </Text>
             <Box marginTop={1}>
-              <Text color={theme.tokens.primary}>y approve · n deny</Text>
+              <Text color={theme.tokens.primary}>y approve · n deny · or type yes/no</Text>
             </Box>
           </Box>
         ) : (

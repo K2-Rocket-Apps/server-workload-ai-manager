@@ -12,7 +12,8 @@ import { useKeyboard } from "./hooks/use-keyboard.js";
 import { useTerminalDispatch } from "./hooks/use-terminal-dispatch.js";
 import { useCommandPaletteKeyboard } from "./hooks/use-command-palette.js";
 import { welcomeMessageBody } from "./features/welcome.js";
-import { addSystemMessage } from "./state/actions.js";
+import { isApprovalReply, isDenialReply } from "./core/approval.js";
+import { addSystemMessage, addUserMessage } from "./state/actions.js";
 import {
   filterCommands,
   parseSlashInput,
@@ -43,6 +44,7 @@ function MistralAppInner({ onExit }: InnerProps) {
   const welcomeShown = useAppSelector((s) => s.welcomeShown);
   const configStatus = useAppSelector((s) => s.configStatus);
   const vms = useAppSelector((s) => s.vms);
+  const pending = useAppSelector((s) => s.pending);
 
   useTerminalDispatch();
   const { reload } = useConfigLoader();
@@ -87,6 +89,19 @@ function MistralAppInner({ onExit }: InnerProps) {
       inputHistory.pushLine(text);
 
       try {
+        if (pending) {
+          if (isApprovalReply(text)) {
+            dispatch(addUserMessage(text));
+            await approvePending();
+            return;
+          }
+          if (isDenialReply(text)) {
+            dispatch(addUserMessage(text));
+            denyPending();
+            return;
+          }
+        }
+
         if (!text.startsWith("/")) {
           await sendChat(text);
           return;
@@ -114,7 +129,7 @@ function MistralAppInner({ onExit }: InnerProps) {
         submittingRef.current = false;
       }
     },
-    [dispatch, inputHistory, runSlash, sendChat, state.loading],
+    [dispatch, inputHistory, runSlash, sendChat, state.loading, pending, approvePending, denyPending],
   );
 
   const handleKeyboardSubmit = useCallback(() => {

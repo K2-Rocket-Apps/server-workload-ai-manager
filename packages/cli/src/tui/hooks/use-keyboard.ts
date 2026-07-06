@@ -281,6 +281,18 @@ export function useKeyboard({ state, dispatch, handlers, enabled = true }: UseKe
     (input: string, key: InkKey) => {
       if (!enabled) return;
 
+      // Pending approval: y/n work from any tab when the input line is empty.
+      if (state.pending && state.modal.type === "none" && state.input.length === 0 && !key.ctrl && !key.meta) {
+        if (input === "y" || input === "Y") {
+          handlers.onApprove?.();
+          return;
+        }
+        if (input === "n" || input === "N") {
+          handlers.onDeny?.();
+          return;
+        }
+      }
+
       // Printable keys go to the chat TextInput — never steal letters like "c" for /check.
       if (isTypingInChat(state) && !isNavigationOrChordKey(key) && input.length === 1) {
         return;
