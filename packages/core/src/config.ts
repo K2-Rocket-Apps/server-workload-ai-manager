@@ -53,14 +53,8 @@ export const ConfigSchema = z.object({
         ]),
       )
       .default(["guest_agent_down", "high_cpu", "high_mem", "disk_full", "vm_stopped_unexpected"]),
-    guest_exec_allowlist: z.array(z.string()).default([
-      "df",
-      "systemctl",
-      "kubectl",
-      "uptime",
-      "free",
-      "hostname",
-    ]),
+    guest_exec_unrestricted: z.boolean().default(true),
+    guest_exec_allowlist: z.array(z.string()).default([]),
   }),
   migration: z
     .object({
@@ -124,7 +118,8 @@ export const DEFAULT_CONFIG: AppConfig = {
   policies: {
     require_approval_for: ["stop", "reboot", "migrate", "guest_exec"],
     auto_alert_on: ["guest_agent_down", "high_cpu", "high_mem", "disk_full", "vm_stopped_unexpected"],
-    guest_exec_allowlist: ["df", "ls", "cat", "pwd", "ps", "systemctl", "kubectl", "uptime", "free", "hostname"],
+    guest_exec_unrestricted: true,
+    guest_exec_allowlist: [],
   },
   migration: { target_nodes: [], requires_approval: true },
   web: { host: "0.0.0.0", port: 8787, bind_mode: "lan", admin_username: "admin", password_hash: "", session_secret: "" },

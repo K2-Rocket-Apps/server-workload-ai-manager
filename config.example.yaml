@@ -48,13 +48,8 @@ policies:
     - high_mem
     - disk_full
     - vm_stopped_unexpected
-  guest_exec_allowlist:
-    - df
-    - systemctl
-    - kubectl
-    - uptime
-    - free
-    - hostname
+  guest_exec_unrestricted: true
+  guest_exec_allowlist: []
 
 migration:
   target_nodes: []

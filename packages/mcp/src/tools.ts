@@ -176,13 +176,15 @@ export class ToolRegistry {
   }
 
   private assertGuestExecAllowed(command: string[]): void {
+    if (this.config.policies.guest_exec_unrestricted) return;
+    const list = this.config.policies.guest_exec_allowlist;
+    if (!list.length || list.includes("*")) return;
+
     const joined = command.join(" ");
-    const allowed = this.config.policies.guest_exec_allowlist.some((prefix) =>
-      joined.includes(prefix),
-    );
+    const allowed = list.some((prefix) => joined.includes(prefix));
     if (!allowed) {
       throw new Error(
-        `Guest exec not in allowlist. Allowed prefixes: ${this.config.policies.guest_exec_allowlist.join(", ")}`,
+        `Guest exec not in allowlist. Allowed prefixes: ${list.join(", ")} — or set policies.guest_exec_unrestricted: true`,
       );
     }
   }

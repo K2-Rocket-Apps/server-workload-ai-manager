@@ -4,7 +4,18 @@ import { dirname, join } from "node:path";
 import { parse, stringify } from "yaml";
 import { AppConfig, ConfigSchema, DEFAULT_CONFIG } from "./config.js";
 
-const GUEST_EXEC_BASELINE = DEFAULT_CONFIG.policies.guest_exec_allowlist;
+function mergeGuestExecPolicy(config: AppConfig): AppConfig["policies"] {
+  if (config.policies.guest_exec_unrestricted) {
+    return config.policies;
+  }
+  const baseline = DEFAULT_CONFIG.policies.guest_exec_allowlist;
+  return {
+    ...config.policies,
+    guest_exec_allowlist: [
+      ...new Set([...baseline, ...config.policies.guest_exec_allowlist]),
+    ],
+  };
+}
 
 const ENV_PATTERN = /\$\{([A-Z0-9_]+)\}/g;
 
@@ -121,12 +132,7 @@ function applyEnvDefaults(config: AppConfig): AppConfig {
         webhook_url: config.alerts.slack.webhook_url || process.env.SLACK_WEBHOOK_URL,
       },
     },
-    policies: {
-      ...config.policies,
-      guest_exec_allowlist: [
-        ...new Set([...GUEST_EXEC_BASELINE, ...config.policies.guest_exec_allowlist]),
-      ],
-    },
+    policies: mergeGuestExecPolicy(config),
   });
 }
 
