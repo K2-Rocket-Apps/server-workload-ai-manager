@@ -1,0 +1,43 @@
+# Dependabot — fleet dependency updates (GitHub-native; no third-party app, no standing PAT).
+#
+# This repo (server-workload-ai-manager / Mistral PVE Agent) is a main-based
+# TypeScript pnpm monorepo/source: it is installed straight from `main` onto the
+# PVE host and has no develop -> qa -> main Cloud deploy flow, so dependency PRs
+# target the DEFAULT branch (`main`), matching the packages subtree-split source
+# convention rather than the app develop-flow convention.
+#
+# Cooldown applies to VERSION updates only — Dependabot SECURITY updates bypass
+# cooldown and ship immediately (GitHub-native behaviour, nothing to configure).
+version: 2
+
+updates:
+  # JavaScript / npm dependencies (pnpm workspace — Dependabot reads pnpm-lock.yaml).
+  - package-ecosystem: "npm"
+    directory: "/"
+    target-branch: "main"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "npm"
+    cooldown:
+      default-days: 7
+
+  # GitHub Actions used by our workflows.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "main"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "github-actions"
+    cooldown:
+      default-days: 7
+    groups:
+      # Bundle all first-party K2-Rocket-Apps/* action bumps into a single PR.
+      k2tek:
+        patterns:
+          - "K2-Rocket-Apps/*"
