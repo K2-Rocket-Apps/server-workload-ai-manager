@@ -69,6 +69,10 @@ echo "==> Web dashboard (admin password + bind address)"
 sudo mistral start web || mistral start web || true
 
 echo ""
+echo "==> Restarting services to load new build..."
+systemctl restart mistral-web.service mistral-daemon.service 2>/dev/null || true
+
+echo ""
 echo "==> Done!"
 echo "  mistral              # TUI chat"
 echo "  mistral start web    # web dashboard + boot"

@@ -66,38 +66,38 @@ export const DASHBOARD_PAGE = `<!DOCTYPE html>
         </div>
       </div>
       <nav class="sidebar-nav">
-        <button class="nav-item active" data-panel="dashboard">Dashboard</button>
-        <button class="nav-item" data-panel="chat">Chat</button>
-        <button class="nav-item" data-panel="vms">VMs</button>
-        <button class="nav-item" data-panel="alerts">Alerts</button>
-        <button class="nav-item" data-panel="approvals">Approvals</button>
-        <button class="nav-item" data-panel="logs">Logs</button>
-        <button class="nav-item" data-panel="settings">Settings</button>
-        <button class="nav-item" data-panel="help">Help</button>
+        <button class="nav-item active" data-panel="chat">💬 Chat</button>
+        <button class="nav-item" data-panel="dashboard">📊 Dashboard</button>
+        <button class="nav-item" data-panel="vms">🖥 VMs</button>
+        <button class="nav-item" data-panel="alerts">🔔 Alerts</button>
+        <button class="nav-item" data-panel="approvals">✓ Approvals</button>
+        <button class="nav-item" data-panel="logs">📜 Logs</button>
+        <button class="nav-item" data-panel="settings">⚙ Settings</button>
+        <button class="nav-item" data-panel="help">? Help</button>
       </nav>
       <div class="sidebar-footer">
         <div id="status-api" class="status-pill">API …</div>
         <div id="status-pve" class="status-pill">PVE …</div>
         <div id="status-daemon" class="status-pill">Daemon …</div>
-        <button class="btn btn-ghost btn-sm btn-block" onclick="logout()">Logout</button>
+        <button class="btn btn-ghost btn-sm btn-block" id="btn-logout">Logout</button>
       </div>
     </aside>
 
     <main class="main">
       <header class="topbar">
         <div>
-          <h2 id="page-title">Dashboard</h2>
+          <h2 id="page-title">Chat</h2>
           <p class="muted" id="public-url"></p>
         </div>
         <div class="topbar-actions">
-          <button class="btn btn-secondary" onclick="runCheck()">Run check</button>
-          <button class="btn btn-secondary" onclick="refreshAll()">Refresh</button>
+          <button class="btn btn-secondary" id="btn-run-check" type="button">Run check</button>
+          <button class="btn btn-secondary" id="btn-refresh" type="button">Refresh</button>
         </div>
       </header>
 
       <div id="global-error" class="alert alert-error hidden"></div>
 
-      <section id="panel-dashboard" class="panel active">
+      <section id="panel-dashboard" class="panel">
         <div class="stats-grid" id="stats-grid"></div>
         <div class="card">
           <h3>Node</h3>
@@ -109,23 +109,23 @@ export const DASHBOARD_PAGE = `<!DOCTYPE html>
         </div>
       </section>
 
-      <section id="panel-chat" class="panel">
+      <section id="panel-chat" class="panel active">
         <div id="chat-approval-banner" class="approval-banner hidden">
           <div>
             <strong>Approval required</strong>
             <p id="chat-pending-desc" class="muted"></p>
           </div>
           <div class="btn-row">
-            <button class="btn btn-primary" onclick="approvePending()">Approve</button>
-            <button class="btn btn-secondary" onclick="denyPending()">Deny</button>
+            <button class="btn btn-primary" id="btn-chat-approve" type="button">Approve</button>
+            <button class="btn btn-secondary" id="btn-chat-deny" type="button">Deny</button>
           </div>
         </div>
         <div class="card chat-card">
           <div id="chat-messages" class="chat-messages">
-            <p class="muted">Start a conversation with the Mistral agent.</p>
+            <p class="muted">Ask about your Proxmox host, VMs, or type a command. Approvals: reply <strong>y</strong> or use the Approve button.</p>
           </div>
-          <form id="chat-form" class="chat-input-row" onsubmit="sendChat(event)">
-            <input id="chat-input" type="text" placeholder="Message the agent…" autocomplete="off" />
+          <form id="chat-form" class="chat-input-row">
+            <input id="chat-input" type="text" placeholder="Message the agent… (/help for commands)" autocomplete="off" />
             <button type="submit" class="btn btn-primary" id="chat-send">Send</button>
           </form>
         </div>
@@ -171,16 +171,16 @@ export const DASHBOARD_PAGE = `<!DOCTYPE html>
             <label>To (comma-separated)<input id="alert_to" /></label>
           </div>
           <div class="btn-row">
-            <button class="btn btn-primary" onclick="saveAlerts()">Save email</button>
-            <button class="btn btn-secondary" onclick="testEmail()">Test email</button>
+            <button class="btn btn-primary" id="btn-save-alerts-email" type="button">Save email</button>
+            <button class="btn btn-secondary" id="btn-test-email" type="button">Test email</button>
           </div>
         </div>
         <div class="card">
           <h3>Slack</h3>
           <label>Webhook URL<input id="slack_webhook" type="password" placeholder="https://hooks.slack.com/…" /></label>
           <div class="btn-row">
-            <button class="btn btn-primary" onclick="saveAlerts()">Save Slack</button>
-            <button class="btn btn-secondary" onclick="testAlert()">Test alert</button>
+            <button class="btn btn-primary" id="btn-save-alerts-slack" type="button">Save Slack</button>
+            <button class="btn btn-secondary" id="btn-test-alert" type="button">Test alert</button>
           </div>
         </div>
         <div class="card">
@@ -234,8 +234,8 @@ export const DASHBOARD_PAGE = `<!DOCTYPE html>
             <label>API key (blank = keep)<input id="llm_api_key" type="password" /></label>
           </div>
           <div class="btn-row">
-            <button class="btn btn-primary" onclick="saveLlm()">Save LLM</button>
-            <button class="btn btn-secondary" onclick="testLlm()">Test API</button>
+            <button class="btn btn-primary" id="btn-save-llm" type="button">Save LLM</button>
+            <button class="btn btn-secondary" id="btn-test-llm" type="button">Test API</button>
           </div>
         </div>
         <div class="card">
@@ -254,14 +254,14 @@ export const DASHBOARD_PAGE = `<!DOCTYPE html>
           </div>
           <p class="muted" id="network-hint"></p>
           <div class="btn-row">
-            <button class="btn btn-primary" onclick="saveWeb()">Save web settings</button>
+            <button class="btn btn-primary" id="btn-save-web" type="button">Save web settings</button>
           </div>
         </div>
         <div class="card">
           <h3>Proxmox VE</h3>
           <p class="muted">On the Proxmox host, Mistral uses <code>pvesh</code> as root. Remote: set <code>MISTRAL_PVE_TOKEN_SECRET</code> in <code>/etc/mistral/secrets.env</code></p>
           <div class="btn-row">
-            <button class="btn btn-secondary" onclick="testPve()">Test Proxmox API</button>
+            <button class="btn btn-secondary" id="btn-test-pve" type="button">Test Proxmox API</button>
           </div>
           <pre id="pve-test-result" class="code-block hidden"></pre>
         </div>
@@ -270,7 +270,7 @@ export const DASHBOARD_PAGE = `<!DOCTYPE html>
       <section id="panel-help" class="panel">
         <div class="card">
           <h3>Slash commands</h3>
-          <p class="muted">Available in the terminal TUI (<code>mistral</code>). Type <code>/</code> then Tab to complete.</p>
+          <p class="muted">Chat works here in the web UI and in the terminal TUI (<code>mistral</code>). Type <code>/help</code> in chat for commands.</p>
           <pre id="help-commands" class="code-block help-block"></pre>
         </div>
       </section>
@@ -590,13 +590,13 @@ input:focus, select:focus, textarea:focus {
   margin-bottom: 0.75rem;
 }
 
-.chat-card { display: flex; flex-direction: column; min-height: 420px; padding: 0; overflow: hidden; }
+.chat-card { display: flex; flex-direction: column; min-height: calc(100vh - 11rem); padding: 0; overflow: hidden; }
 .chat-messages {
   flex: 1;
   padding: 1rem;
   overflow-y: auto;
-  max-height: 55vh;
-  min-height: 280px;
+  max-height: calc(100vh - 14rem);
+  min-height: 320px;
 }
 .chat-msg {
   margin-bottom: 0.75rem;
@@ -691,18 +691,61 @@ var HELP_TEXT = [
 var dashData = null;
 var chatBusy = false;
 
-document.getElementById('help-commands').textContent = HELP_TEXT;
+function showPanel(panel) {
+  if (!TITLES[panel]) return;
+  document.querySelectorAll('.nav-item').forEach(function (b) {
+    b.classList.toggle('active', b.dataset.panel === panel);
+  });
+  document.querySelectorAll('.panel').forEach(function (p) { p.classList.remove('active'); });
+  var el = document.getElementById('panel-' + panel);
+  if (el) el.classList.add('active');
+  document.getElementById('page-title').textContent = TITLES[panel] || panel;
+  if (panel === 'chat') {
+    setTimeout(function () {
+      var inp = document.getElementById('chat-input');
+      if (inp) inp.focus();
+    }, 50);
+  }
+}
+
+function initialPanel() {
+  if (location.pathname === '/chat') return 'chat';
+  var hash = location.hash.replace('#', '');
+  if (hash && TITLES[hash]) return hash;
+  var q = new URLSearchParams(location.search).get('panel');
+  if (q && TITLES[q]) return q;
+  return 'chat';
+}
+
+var helpEl = document.getElementById('help-commands');
+if (helpEl) helpEl.textContent = HELP_TEXT;
 
 document.querySelectorAll('.nav-item').forEach(function (btn) {
-  btn.onclick = function () {
-    document.querySelectorAll('.nav-item').forEach(function (b) { b.classList.remove('active'); });
-    document.querySelectorAll('.panel').forEach(function (p) { p.classList.remove('active'); });
-    btn.classList.add('active');
-    var panel = btn.dataset.panel;
-    document.getElementById('panel-' + panel).classList.add('active');
-    document.getElementById('page-title').textContent = TITLES[panel] || panel;
-  };
+  btn.onclick = function () { showPanel(btn.dataset.panel); };
 });
+
+document.getElementById('chat-form').addEventListener('submit', sendChat);
+document.getElementById('btn-chat-approve').addEventListener('click', approvePending);
+document.getElementById('btn-chat-deny').addEventListener('click', denyPending);
+document.getElementById('btn-run-check').addEventListener('click', runCheck);
+document.getElementById('btn-refresh').addEventListener('click', refreshAll);
+document.getElementById('btn-logout').addEventListener('click', logout);
+document.getElementById('btn-save-llm').addEventListener('click', saveLlm);
+document.getElementById('btn-test-llm').addEventListener('click', testLlm);
+document.getElementById('btn-save-web').addEventListener('click', saveWeb);
+document.getElementById('btn-test-pve').addEventListener('click', testPve);
+document.getElementById('btn-save-alerts-email').addEventListener('click', saveAlerts);
+document.getElementById('btn-test-email').addEventListener('click', testEmail);
+document.getElementById('btn-save-alerts-slack').addEventListener('click', saveAlerts);
+document.getElementById('btn-test-alert').addEventListener('click', testAlert);
+
+document.getElementById('approvals-content').addEventListener('click', function (e) {
+  var t = e.target;
+  if (t && t.dataset && t.dataset.action === 'approve') approvePending();
+  if (t && t.dataset && t.dataset.action === 'deny') denyPending();
+});
+
+showPanel(initialPanel());
 
 async function api(path, opts) {
   var res = await fetch(path, opts);
@@ -781,7 +824,7 @@ function renderChatMessages(messages) {
   el.innerHTML = messages.map(function (m) {
     return '<div class="chat-msg ' + m.role + '">' +
       '<div class="meta">' + escapeHtml(m.role) + ' · ' + formatTime(m.at) + '</div>' +
-      escapeHtml(m.content) + '</div>';
+      escapeHtml(m.content).replace(/\\n/g, '<br/>') + '</div>';
   }).join('');
   el.scrollTop = el.scrollHeight;
 }
@@ -800,8 +843,8 @@ function renderPending(pending) {
       '<strong>' + escapeHtml(pending.name) + '</strong>' +
       '<p class="muted">' + escapeHtml(text) + '</p>' +
       '<div class="btn-row">' +
-      '<button class="btn btn-primary" onclick="approvePending()">Approve</button>' +
-      '<button class="btn btn-secondary" onclick="denyPending()">Deny</button>' +
+      '<button type="button" class="btn btn-primary" data-action="approve">Approve</button>' +
+      '<button type="button" class="btn btn-secondary" data-action="deny">Deny</button>' +
       '</div></div>';
   } else {
     banner.classList.add('hidden');
@@ -986,21 +1029,68 @@ async function sendChat(e) {
   var input = document.getElementById('chat-input');
   var msg = input.value.trim();
   if (!msg) return;
+
+  if (msg === '/clear') {
+    await api('/api/chat/clear', { method: 'POST' });
+    refreshAll();
+    input.value = '';
+    return;
+  }
+  if (msg === '/help') {
+    showPanel('help');
+    input.value = '';
+    return;
+  }
+  if (msg === '/vms' || msg === '/dashboard' || msg === '/settings' || msg === '/alerts' || msg === '/approvals' || msg === '/logs') {
+    showPanel(msg.slice(1));
+    input.value = '';
+    return;
+  }
+
   chatBusy = true;
   document.getElementById('chat-send').disabled = true;
   input.value = '';
+  var thinking = document.createElement('div');
+  thinking.id = 'chat-thinking';
+  thinking.className = 'chat-msg system';
+  thinking.textContent = 'Thinking…';
+  document.getElementById('chat-messages').appendChild(thinking);
   try {
     var res = await api('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: msg })
     });
-    if (res) refreshAll();
+    var thinkEl = document.getElementById('chat-thinking');
+    if (thinkEl) thinkEl.remove();
+    if (!res) {
+      appendChatBubble('system', 'Chat failed — session expired? Reload and sign in again.');
+    } else if (res.error) {
+      appendChatBubble('system', res.error);
+    }
+    refreshAll();
+  } catch (err) {
+    var thinkEl2 = document.getElementById('chat-thinking');
+    if (thinkEl2) thinkEl2.remove();
+    appendChatBubble('system', 'Chat error: ' + (err && err.message ? err.message : String(err)));
   } finally {
     chatBusy = false;
     document.getElementById('chat-send').disabled = false;
     input.focus();
   }
+}
+
+function appendChatBubble(role, content) {
+  var el = document.getElementById('chat-messages');
+  var placeholder = el.querySelector('.muted');
+  if (placeholder && !el.querySelector('.chat-msg')) el.innerHTML = '';
+  var at = new Date().toISOString();
+  var div = document.createElement('div');
+  div.className = 'chat-msg ' + role;
+  div.innerHTML = '<div class="meta">' + escapeHtml(role) + ' · ' + formatTime(at) + '</div>' +
+    escapeHtml(content).replace(/\\n/g, '<br/>');
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
 }
 
 async function approvePending() {

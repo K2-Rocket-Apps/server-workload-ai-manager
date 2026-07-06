@@ -24,6 +24,7 @@ import { loadState } from "@mistral/daemon";
 import { APP_CSS, APP_JS, DASHBOARD_PAGE, LOGIN_PAGE } from "./ui/assets.js";
 import {
   approveWebPending,
+  clearWebChat,
   denyWebPending,
   getWebSessionState,
   runWebChat,
@@ -203,6 +204,8 @@ export function createWebApp(getConfig: () => Promise<AppConfig>) {
 
   app.get("/", (c) => c.html(DASHBOARD_PAGE));
 
+  app.get("/chat", (c) => c.html(DASHBOARD_PAGE));
+
   app.get("/api/dashboard", async (c) => {
     const config = await getConfig();
     return c.json(await fetchDashboardData(config));
@@ -218,8 +221,17 @@ export function createWebApp(getConfig: () => Promise<AppConfig>) {
   app.post("/api/chat", async (c) => {
     const body = await c.req.json<{ message?: string }>();
     if (!body.message?.trim()) return c.json({ error: "Empty message" }, 400);
-    const result = await runWebChat(body.message.trim());
-    return c.json(result);
+    try {
+      const result = await runWebChat(body.message.trim());
+      return c.json(result);
+    } catch (err) {
+      return c.json({ error: (err as Error).message }, 500);
+    }
+  });
+
+  app.post("/api/chat/clear", async (c) => {
+    clearWebChat();
+    return c.json({ ok: true });
   });
 
   app.post("/api/approve", async (c) => c.json(await approveWebPending()));

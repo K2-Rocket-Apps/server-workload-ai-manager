@@ -72,6 +72,11 @@ export async function runStartWeb(options: StartWebOptions = {}): Promise<void> 
   if (isRoot() && !options.noSystemd && !options.foreground) {
     console.log("==> Enabling mistral-web + mistral-daemon on boot...");
     enableSystemdServices();
+    try {
+      execSync("systemctl restart mistral-web.service mistral-daemon.service", { stdio: "ignore" });
+    } catch {
+      /* services may not exist yet */
+    }
     if (systemdActive()) {
       console.log(`\n✓ Web dashboard running at ${url}`);
       console.log(`  Login: ${config.web.admin_username}`);

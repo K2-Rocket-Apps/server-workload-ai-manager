@@ -110,6 +110,12 @@ export function denyWebPending(): void {
   });
 }
 
+export function clearWebChat(): void {
+  chatHistory = [];
+  displayMessages = [];
+  pendingApproval = null;
+}
+
 export async function runWebChat(
   text: string,
 ): Promise<{ reply: string; pending: PendingApproval | null }> {
