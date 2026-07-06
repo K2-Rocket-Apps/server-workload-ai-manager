@@ -10,26 +10,26 @@ SSH to PVE as root, then one command:
 curl -fsSL https://raw.githubusercontent.com/K2-Rocket-Apps/server-workload-ai-manager/main/infra/one-click-install.sh | sudo bash
 ```
 
-Then enable services:
+Then start the web dashboard (setup wizard + boot persistence):
 
 ```bash
-sudo systemctl enable --now mistral-daemon mistral-web
+sudo mistral start web
 ```
 
 ### What setup asks you
 
 1. Install Node.js 22 + pnpm
 2. Clone the repo to `/opt/mistral` and build
-3. **Ask you to set a web UI password** (required, min 8 chars)
+3. **Admin username + password** for the web dashboard (min 8 chars)
 4. Let you choose **LAN** (default), **Tailscale**, or **localhost** bind address
 5. Optionally configure **SMTP email** and Slack alerts
-6. Install `mistral` to `/usr/local/bin` and register systemd services
+6. Enable **systemd** so web + daemon start on boot
 
 After install:
 
 ```bash
-sudo systemctl enable --now mistral-daemon   # background health checks + alerts
-sudo systemctl enable --now mistral-web      # password-protected web UI
+sudo mistral start web      # web dashboard (or re-run setup)
+mistral                     # TUI chat in terminal
 ```
 
 ## Web UI access
@@ -40,11 +40,13 @@ sudo systemctl enable --now mistral-web      # password-protected web UI
 | **Tailscale** | `http://100.x.x.x:8787` | Devices on your tailnet only |
 | **localhost** | `http://127.0.0.1:8787` | SSH tunnel only |
 
-The URL is saved in `/etc/mistral/config.yaml` as `web.public_url`. You must log in with the password you set during setup.
+The URL is saved in `/etc/mistral/config.yaml` as `web.public_url`. Log in with the **admin username** and password from setup.
 
 Reconfigure anytime:
 
 ```bash
+sudo mistral start web --reconfigure
+# or full setup:
 sudo mistral setup
 ```
 

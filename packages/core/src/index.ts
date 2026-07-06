@@ -5,3 +5,4 @@ export * from "./agent.js";
 export * from "./auth.js";
 export * from "./network.js";
 export * from "./setup.js";
+export * from "./web-setup.js";

@@ -74,6 +74,7 @@ export const ConfigSchema = z.object({
       port: z.number().default(8787),
       bind_mode: z.enum(["lan", "tailscale", "localhost"]).default("lan"),
       public_url: z.string().optional(),
+      admin_username: z.string().default("admin"),
       password_hash: z.string().default(""),
       session_secret: z.string().default(""),
     })
@@ -126,6 +127,6 @@ export const DEFAULT_CONFIG: AppConfig = {
     guest_exec_allowlist: ["df", "ls", "cat", "pwd", "ps", "systemctl", "kubectl", "uptime", "free", "hostname"],
   },
   migration: { target_nodes: [], requires_approval: true },
-  web: { host: "0.0.0.0", port: 8787, bind_mode: "lan", password_hash: "", session_secret: "" },
+  web: { host: "0.0.0.0", port: 8787, bind_mode: "lan", admin_username: "admin", password_hash: "", session_secret: "" },
   mcp: { http_host: "127.0.0.1", http_port: 8788 },
 };

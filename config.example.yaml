@@ -65,6 +65,7 @@ web:
   port: 8787
   bind_mode: lan
   public_url: http://192.168.0.15:8787
+  admin_username: admin
   password_hash: ""
   session_secret: ""
 

@@ -127,8 +127,14 @@ export async function runSetup(options: { nonInteractive?: boolean } = {}): Prom
       if (cont.toLowerCase() !== "y") process.exit(1);
     }
 
-    // Web password
-    console.log("\n--- Web UI password ---");
+    // Web admin
+    console.log("\n--- Web dashboard admin ---");
+    const user =
+      (await rl.question(`Admin username [${config.web.admin_username || "admin"}]: `)) ||
+      config.web.admin_username ||
+      "admin";
+    config.web.admin_username = user.trim() || "admin";
+
     let password = "";
     while (password.length < 8) {
       password = await promptMasked("Web UI password (min 8 chars): ", rl);

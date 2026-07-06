@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
+import { secureHeaders } from "hono/secure-headers";
 import type { Context, Next } from "hono";
 import { serve } from "@hono/node-server";
 import type { AppConfig } from "@mistral/core";
@@ -8,14 +9,26 @@ import {
   saveConfig,
   toPveConfig,
   statePath,
-  verifyPassword,
+  verifyWebLogin,
+  hashPassword,
+  generateSessionSecret,
   createSessionToken,
   verifySessionToken,
+  applyWebBind,
+  detectLanIp,
+  detectTailscaleIp,
 } from "@mistral/core";
 import { createPveClient, isLocalPveHost } from "@mistral/pve";
 import { AlertDispatcher } from "@mistral/alerts";
 import { loadState } from "@mistral/daemon";
 import { APP_CSS, APP_JS, DASHBOARD_PAGE, LOGIN_PAGE } from "./ui/assets.js";
+import {
+  approveWebPending,
+  denyWebPending,
+  getWebSessionState,
+  runWebChat,
+  runWebCheck,
+} from "./session-state.js";
 
 function requireAuth(getConfig: () => Promise<AppConfig>) {
   return async (c: Context, next: Next) => {
@@ -25,7 +38,12 @@ function requireAuth(getConfig: () => Promise<AppConfig>) {
     }
 
     const config = await getConfig();
-    if (!config.web.password_hash) return next();
+    if (!config.web.password_hash) {
+      if (path.startsWith("/api/")) {
+        return c.json({ error: "Web not configured. Run: mistral start web" }, 503);
+      }
+      return c.redirect("/login");
+    }
 
     const token = getCookie(c, "mistral_session");
     if (!token || !verifySessionToken(token, config.web.session_secret)) {
@@ -40,13 +58,20 @@ function requireAuth(getConfig: () => Promise<AppConfig>) {
 
 async function fetchDashboardData(config: AppConfig) {
   const state = await loadState(statePath());
+  const session = getWebSessionState();
   const base = {
     recentAlerts: state.recentAlerts,
     lastCheckAt: state.lastCheckAt,
     publicUrl: config.web.public_url,
+    bindMode: config.web.bind_mode,
+    adminUsername: config.web.admin_username,
     apiKeySet: Boolean(config.llm.api_key),
+    daemonEnabled: config.daemon.enabled,
+    daemonInterval: config.daemon.check_interval_minutes,
+    watchedVmids: config.daemon.watched_vmids,
     node: config.pve.node,
     pveOk: false,
+    pveLocal: isLocalPveHost(),
     vms: [] as Array<Record<string, unknown>>,
     nodeStatus: null as {
       cpuPercent: number;
@@ -54,8 +79,12 @@ async function fetchDashboardData(config: AppConfig) {
       uptime: number;
       status: string;
     } | null,
+    chat: session.messages.slice(-40),
+    pending: session.pending,
+    toolLogs: session.toolLogs,
     config: {
       llm: { provider: config.llm.provider, model: config.llm.model },
+      web: { bind_mode: config.web.bind_mode, port: config.web.port, host: config.web.host },
       alerts: {
         email: {
           smtp_host: config.alerts.email.smtp_host,
@@ -63,7 +92,9 @@ async function fetchDashboardData(config: AppConfig) {
           smtp_user: config.alerts.email.smtp_user,
           from: config.alerts.email.from,
           to: config.alerts.email.to,
+          enabled: config.alerts.email.enabled,
         },
+        slack: { enabled: config.alerts.slack.enabled },
       },
     },
   };
@@ -72,7 +103,7 @@ async function fetchDashboardData(config: AppConfig) {
     return {
       ...base,
       error:
-        "PVE not reachable. Run on the Proxmox host (uses pvesh as root) or set MISTRAL_PVE_TOKEN_SECRET in /etc/mistral/secrets.env",
+        "PVE not reachable. Run on Proxmox host or set MISTRAL_PVE_TOKEN_SECRET in /etc/mistral/secrets.env",
       vms: [],
     };
   }
@@ -113,6 +144,7 @@ async function fetchDashboardData(config: AppConfig) {
 export function createWebApp(getConfig: () => Promise<AppConfig>) {
   const app = new Hono();
 
+  app.use("*", secureHeaders());
   app.use("*", requireAuth(getConfig));
 
   app.get("/assets/app.css", (c) =>
@@ -124,20 +156,36 @@ export function createWebApp(getConfig: () => Promise<AppConfig>) {
 
   app.get("/login", async (c) => {
     const config = await getConfig();
-    if (!config.web.password_hash) return c.redirect("/");
-    return c.html(LOGIN_PAGE);
+    if (!config.web.password_hash) {
+      return c.html(LOGIN_PAGE.replace("{{SETUP_HINT}}", "Run on the server: mistral start web"));
+    }
+    return c.html(LOGIN_PAGE.replace("{{SETUP_HINT}}", ""));
   });
 
   app.post("/api/login", async (c) => {
     const config = await getConfig();
-    const body = await c.req.json<{ password?: string }>();
-    if (!body.password || !verifyPassword(body.password, config.web.password_hash)) {
-      return c.json({ error: "Invalid password" }, 401);
+    const body = await c.req.json<{ username?: string; password?: string }>();
+    if (
+      !body.username ||
+      !body.password ||
+      !verifyWebLogin(
+        body.username,
+        body.password,
+        config.web.admin_username || "admin",
+        config.web.password_hash,
+      )
+    ) {
+      return c.json({ error: "Invalid username or password" }, 401);
+    }
+    if (!config.web.session_secret) {
+      config.web.session_secret = generateSessionSecret();
+      await saveConfig(config);
     }
     const token = createSessionToken(config.web.session_secret);
     setCookie(c, "mistral_session", token, {
       httpOnly: true,
       sameSite: "Strict",
+      secure: false,
       maxAge: 86400,
       path: "/",
     });
@@ -156,14 +204,46 @@ export function createWebApp(getConfig: () => Promise<AppConfig>) {
     return c.json(await fetchDashboardData(config));
   });
 
-  app.get("/api/vms", async (c) => {
-    const config = await getConfig();
-    const data = await fetchDashboardData(config);
+  app.get("/api/network", async (c) => {
     return c.json({
-      vms: data.vms,
-      error: "error" in data ? data.error : undefined,
-      nodeStatus: data.nodeStatus,
+      lan: detectLanIp(),
+      tailscale: detectTailscaleIp(),
     });
+  });
+
+  app.post("/api/chat", async (c) => {
+    const body = await c.req.json<{ message?: string }>();
+    if (!body.message?.trim()) return c.json({ error: "Empty message" }, 400);
+    const result = await runWebChat(body.message.trim());
+    return c.json(result);
+  });
+
+  app.post("/api/approve", async (c) => c.json(await approveWebPending()));
+
+  app.post("/api/deny", async (c) => {
+    denyWebPending();
+    return c.json({ ok: true });
+  });
+
+  app.post("/api/check", async (c) => c.json(await runWebCheck()));
+
+  app.post("/api/config/web", async (c) => {
+    const config = await getConfig();
+    const body = await c.req.json<{
+      bind_mode?: "lan" | "tailscale" | "localhost";
+      port?: number;
+      password?: string;
+      admin_username?: string;
+    }>();
+    if (body.bind_mode) config.web.bind_mode = body.bind_mode;
+    if (body.port && body.port > 0) config.web.port = body.port;
+    if (body.admin_username?.trim()) config.web.admin_username = body.admin_username.trim();
+    if (body.password && body.password.length >= 8) {
+      config.web.password_hash = hashPassword(body.password);
+    }
+    applyWebBind(config);
+    await saveConfig(config);
+    return c.json({ ok: true, publicUrl: config.web.public_url });
   });
 
   app.post("/api/config/llm", async (c) => {
@@ -210,16 +290,12 @@ export function createWebApp(getConfig: () => Promise<AppConfig>) {
   app.post("/api/test/pve", async (c) => {
     const config = await getConfig();
     if (!config.pve.token_secret && !isLocalPveHost()) {
-      return c.json({
-        ok: false,
-        error: "Not on a Proxmox host and no API token configured",
-      });
+      return c.json({ ok: false, error: "Not on Proxmox host and no API token" });
     }
     try {
       const pve = createPveClient(toPveConfig(config));
-      const vms = await pve.listVms();
       const report = await pve.inventoryReport();
-      return c.json({ ok: true, count: vms.length, local: pve.isLocalMode(), vms: report.vms });
+      return c.json({ ok: true, count: report.vms.length, vms: report.vms });
     } catch (err) {
       return c.json({ ok: false, error: (err as Error).message });
     }
@@ -237,23 +313,25 @@ export function createWebApp(getConfig: () => Promise<AppConfig>) {
   app.post("/api/test/email", async (c) => {
     const config = await getConfig();
     const alerts = new AlertDispatcher(config.alerts);
-    const result = await alerts.send({
-      subject: "[Mistral PVE] Email test",
-      body: "If you received this, SMTP is configured correctly.",
-      severity: "info",
-    });
-    return c.json(result);
+    return c.json(
+      await alerts.send({
+        subject: "[Mistral PVE] Email test",
+        body: "SMTP test from web dashboard.",
+        severity: "info",
+      }),
+    );
   });
 
   app.post("/api/test/alert", async (c) => {
     const config = await getConfig();
     const alerts = new AlertDispatcher(config.alerts);
-    const result = await alerts.send({
-      subject: "[Mistral PVE] Web UI test",
-      body: "Test alert from web settings panel.",
-      severity: "info",
-    });
-    return c.json(result);
+    return c.json(
+      await alerts.send({
+        subject: "[Mistral PVE] Web test",
+        body: "Test alert from web dashboard.",
+        severity: "info",
+      }),
+    );
   });
 
   return app;
@@ -261,15 +339,16 @@ export function createWebApp(getConfig: () => Promise<AppConfig>) {
 
 export async function startWebServer(config: AppConfig): Promise<void> {
   if (!config.web.password_hash) {
-    console.warn("WARNING: Web UI has no password set. Run: mistral setup");
+    console.warn("WARNING: Web not secured. Run: mistral start web");
   }
+  applyWebBind(config);
   const app = createWebApp(async () => loadConfig());
   const host = config.web.host;
   const port = config.web.port;
   serve({ fetch: app.fetch, hostname: host, port });
   const url = config.web.public_url ?? `http://${host}:${port}`;
-  console.log(`Web UI at ${url}`);
-  if (!config.web.password_hash) {
-    console.log("Set a password: mistral setup");
+  console.log(`Web dashboard: ${url}`);
+  if (config.web.admin_username) {
+    console.log(`Login: ${config.web.admin_username}`);
   }
 }

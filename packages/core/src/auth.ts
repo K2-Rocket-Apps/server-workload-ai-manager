@@ -45,3 +45,16 @@ export function verifySessionToken(token: string, sessionSecret: string): boolea
     return false;
   }
 }
+
+/** Verify web admin login (username + password). */
+export function verifyWebLogin(
+  username: string,
+  password: string,
+  storedUsername: string,
+  passwordHash: string,
+): boolean {
+  if (!username || !password || !passwordHash) return false;
+  const userOk =
+    storedUsername.toLowerCase() === username.trim().toLowerCase();
+  return userOk && verifyPassword(password, passwordHash);
+}

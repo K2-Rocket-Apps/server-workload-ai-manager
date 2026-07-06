@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { loadConfig, saveConfig, configPath, toPveConfig, runSetup } from "@mistral/core";
+import { loadConfig, saveConfig, configPath, toPveConfig, runSetup, runWebSetup } from "@mistral/core";
 import { createPveClient } from "@mistral/pve";
 import { ToolRegistry } from "@mistral/mcp";
 import { startStdioMcp, startHttpMcp } from "@mistral/mcp";
@@ -8,6 +8,7 @@ import { MistralDaemon } from "@mistral/daemon";
 import { AlertDispatcher } from "@mistral/alerts";
 import { startWebServer } from "@mistral/web";
 import { runChatTui } from "./tui/chat.js";
+import { runStartWeb } from "./start-web.js";
 
 const program = new Command();
 
@@ -149,6 +150,32 @@ program
     } else {
       await startStdioMcp(config);
     }
+  });
+
+program
+  .command("start")
+  .description("Start Mistral services")
+  .argument("<target>", "web | daemon | all")
+  .option("-f, --foreground", "Run in foreground (no systemd)")
+  .option("--reconfigure", "Re-run web setup wizard")
+  .action(async (target: string, opts: { foreground?: boolean; reconfigure?: boolean }) => {
+    if (target === "web" || target === "all") {
+      if (opts.reconfigure) {
+        await runWebSetup();
+      }
+      await runStartWeb({ foreground: opts.foreground });
+      return;
+    }
+    if (target === "daemon") {
+      const config = await loadConfig();
+      const daemon = new MistralDaemon(config);
+      console.log("Starting daemon (foreground)...");
+      await daemon.start();
+      await new Promise(() => {});
+      return;
+    }
+    console.error("Unknown target. Use: web, daemon, or all");
+    process.exit(1);
   });
 
 program

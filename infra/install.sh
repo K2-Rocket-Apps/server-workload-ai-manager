@@ -59,20 +59,18 @@ systemctl daemon-reload
 export MISTRAL_CONFIG="$CONFIG_FILE"
 if [[ ! -f "$CONFIG_FILE" ]] || grep -qE '^  password_hash: ""$' "$CONFIG_FILE" 2>/dev/null || ! grep -q 'password_hash:' "$CONFIG_FILE" 2>/dev/null; then
   echo ""
-  echo "==> First-time setup — you must set a web UI password"
+  echo "==> First-time setup"
   echo ""
   mistral setup
-else
-  echo "Config exists at $CONFIG_FILE (skipping setup — run 'mistral setup' to reconfigure)"
 fi
 
 echo ""
-echo "==> Done!"
-echo "  mistral          # chat TUI"
-echo "  mistral report   # health report"
-echo "  mistral test-email"
-echo "  mistral setup    # reconfigure password / email / bind"
+echo "==> Starting web dashboard (systemd + boot)..."
+mistral start web || true
+
 echo ""
-echo "  sudo systemctl enable --now mistral-daemon"
-echo "  sudo systemctl enable --now mistral-web"
+echo "==> Done!"
+echo "  mistral              # TUI chat"
+echo "  mistral start web    # web dashboard + boot"
+echo "  mistral report       # health report"
 echo ""
