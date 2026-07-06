@@ -212,8 +212,8 @@ export const DEFAULT_BINDINGS: KeyBinding[] = [
   bind(KeyAction.VmStop, "x", "Stop VM (approved)", (i) => i === "x", "vms"),
   bind(KeyAction.VmRestart, "z", "Restart VM (approved)", (i) => i === "z", "vms"),
 
-  bind(KeyAction.RunReport, "R", "Run health report", (i) => i === "R", "global"),
-  bind(KeyAction.RunCheck, "c", "Run health check now", (i) => i === "c", "global"),
+  bind(KeyAction.RunReport, "Ctrl+Shift+R", "Run health report", (i, k) => k.ctrl === true && k.shift === true && (i === "r" || i === "R"), "global"),
+  bind(KeyAction.RunCheck, "Ctrl+Shift+H", "Run health check now", (i, k) => k.ctrl === true && k.shift === true && (i === "h" || i === "H"), "global"),
 
   bind(KeyAction.OpenSettings, "Ctrl+,", "Open settings tab", (i, k) => k.ctrl === true && i === ",", "global"),
   bind(KeyAction.ToggleTheme, "Ctrl+T", "Cycle theme", (i, k) => k.ctrl === true && (i === "t" || i === "T"), "global"),

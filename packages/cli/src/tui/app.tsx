@@ -87,32 +87,29 @@ function MistralAppInner({ onExit }: InnerProps) {
       inputHistory.pushLine(text);
 
       try {
-        if (text.startsWith("/")) {
-          const { commandPart } = parseSlashInput(text);
-          if (!resolveCommand(commandPart)) {
-            const matches = filterCommands(text);
-            if (matches.length === 1) {
-              const base = matches[0]!.name.split(" ")[0]!;
-              const resolved = text.includes(" ") ? text : `/${base}`;
-              await runSlash(resolved);
-              return;
-            }
-            if (matches.length > 1) {
-              dispatch(
-                addSystemMessage(
-                  `Unknown: /${commandPart}\nDid you mean: ${matches
-                    .slice(0, 5)
-                    .map((m) => m.usage)
-                    .join("  ·  ")}\nTab to complete, or keep typing.`,
-                ),
-              );
-              return;
-            }
-          }
-          await runSlash(text);
+        if (!text.startsWith("/")) {
+          await sendChat(text);
           return;
         }
-        await sendChat(text);
+
+        const { commandPart } = parseSlashInput(text);
+        if (!resolveCommand(commandPart)) {
+          const matches = filterCommands(text);
+          if (matches.length > 1) {
+            dispatch(
+              addSystemMessage(
+                `Unknown: /${commandPart}\nDid you mean: ${matches
+                  .slice(0, 5)
+                  .map((m) => m.usage)
+                  .join("  ·  ")}\nTab to complete, or keep typing.`,
+              ),
+            );
+            return;
+          }
+          dispatch(addSystemMessage(`Unknown command: /${commandPart}\nType /help for commands.`));
+          return;
+        }
+        await runSlash(text);
       } finally {
         submittingRef.current = false;
       }
@@ -150,8 +147,8 @@ function MistralAppInner({ onExit }: InnerProps) {
         const line = inputHistory.historyDown();
         if (line !== null) dispatch({ type: "SET_INPUT", input: line });
       },
-      onRunReport: () => void runSlash("/report"),
-      onRunCheck: () => void runSlash("/check"),
+      onRunReport: () => void runSlash("/report", { echoUser: false }),
+      onRunCheck: () => void runSlash("/check", { echoUser: false }),
       onClearChat: () => dispatch({ type: "CLEAR_CHAT" }),
     },
     enabled: modal.type === "none" || modal.type === "helpOverlay" || modal.type === "keybindingsOverlay",

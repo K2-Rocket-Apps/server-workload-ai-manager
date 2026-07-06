@@ -68,7 +68,7 @@ export function AlertsView() {
         <Text bold color={theme.tokens.secondary}>
           Commands
         </Text>
-        <Text>/check — run health pass now</Text>
+        <Text>Ctrl+Shift+H — run health check now</Text>
         <Text>/test-alert — send test notification</Text>
         <Text>/test-email — verify SMTP</Text>
         <Text>/daemon status — daemon info</Text>

@@ -34,6 +34,30 @@ export type UseKeyboardOptions = {
   enabled?: boolean;
 };
 
+function isTypingInChat(state: AppState): boolean {
+  return state.tab === "chat" && state.modal.type === "none";
+}
+
+function isNavigationOrChordKey(key: InkKey): boolean {
+  return Boolean(
+    key.ctrl ||
+      key.meta ||
+      key.escape ||
+      key.return ||
+      key.tab ||
+      key.upArrow ||
+      key.downArrow ||
+      key.leftArrow ||
+      key.rightArrow ||
+      key.pageUp ||
+      key.pageDown ||
+      key.home ||
+      key.end ||
+      key.backspace ||
+      key.delete,
+  );
+}
+
 function resolveContext(state: AppState): import("../core/keybindings.js").KeyBinding["context"] {
   if (state.modal.type !== "none") return "global";
   if (state.tab === "approvals") return "approvals";
@@ -257,8 +281,13 @@ export function useKeyboard({ state, dispatch, handlers, enabled = true }: UseKe
     (input: string, key: InkKey) => {
       if (!enabled) return;
 
+      // Printable keys go to the chat TextInput — never steal letters like "c" for /check.
+      if (isTypingInChat(state) && !isNavigationOrChordKey(key) && input.length === 1) {
+        return;
+      }
+
       const tabShortcut = tabFromNumber(input);
-      if (tabShortcut && !key.ctrl && !key.meta) {
+      if (tabShortcut && !key.ctrl && !key.meta && state.input.length === 0) {
         dispatch({ type: "SET_TAB", tab: tabShortcut });
         return;
       }

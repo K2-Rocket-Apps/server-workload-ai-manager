@@ -18,7 +18,7 @@ import { fetchVmInventory } from "./use-vms.js";
 
 export type AgentHooks = {
   sendChat: (text: string) => Promise<void>;
-  runSlash: (line: string) => Promise<void>;
+  runSlash: (line: string, opts?: { echoUser?: boolean }) => Promise<void>;
   approvePending: () => Promise<void>;
   denyPending: () => void;
 };
@@ -179,8 +179,10 @@ export function useAgent({ onExit }: UseAgentOptions): AgentHooks {
   );
 
   const runSlash = useCallback(
-    async (line: string) => {
-      dispatch(addUserMessage(redactSlashCommand(line)));
+    async (line: string, opts?: { echoUser?: boolean }) => {
+      if (opts?.echoUser !== false) {
+        dispatch(addUserMessage(redactSlashCommand(line)));
+      }
       const ctx = buildCommandContext(dispatch, onExit, () => stateRef.current);
       await executeSlashCommand(line, ctx);
     },
