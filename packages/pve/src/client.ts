@@ -1,6 +1,6 @@
 import { Agent, fetch as undiciFetch } from "undici";
 import { isLocalPveHost, pveshCall } from "./local.js";
-import { memToPercent, vmCpuToPercent } from "./metrics.js";
+import { memToPercent, vmCpuFromCluster, vmCpuToPercent } from "./metrics.js";
 import type {
   GuestExecResult,
   GuestExecStatus,
@@ -39,41 +39,22 @@ export class PveClient {
 
   async listVms(node?: string): Promise<VmSummary[]> {
     const n = node ?? this.defaultNode;
+    let summaries: VmSummary[];
 
     try {
       const resources = await this.get<unknown[]>("/cluster/resources", { type: "vm" });
       const rows = (resources ?? [])
         .map((row) => row as JsonRecord)
         .filter((row) => String(row.node ?? n) === n);
-      if (rows.length > 0) {
-        return rows.map((row) => this.mapVm(row, String(row.node ?? n)));
-      }
+      summaries =
+        rows.length > 0
+          ? rows.map((row) => this.mapVm(row, String(row.node ?? n)))
+          : await this.fetchNodeQemuList(n);
     } catch {
-      // Fall back to per-node list (older clusters / restricted tokens).
+      summaries = await this.fetchNodeQemuList(n);
     }
 
-    const data = await this.get<unknown[]>(`/nodes/${n}/qemu`);
-    const summaries = (data ?? []).map((row) => this.mapVm(row as JsonRecord, n));
-
-    const needsStats = summaries.filter(
-      (v) => v.status === "running" && (v.cpu === undefined || v.cpu === 0),
-    );
-    if (needsStats.length > 0) {
-      await Promise.all(
-        needsStats.map(async (vm) => {
-          try {
-            const st = await this.get<JsonRecord>(`/nodes/${n}/qemu/${vm.vmid}/status/current`);
-            if (st.cpu != null) vm.cpu = toNum(st.cpu);
-            if (st.mem != null) vm.mem = toNum(st.mem);
-            if (st.maxmem != null) vm.maxmem = toNum(st.maxmem);
-            if (st.uptime != null) vm.uptime = toNum(st.uptime);
-          } catch {
-            /* VM may have stopped mid-fetch */
-          }
-        }),
-      );
-    }
-
+    await this.enrichRunningVmStats(summaries);
     return summaries;
   }
 
@@ -92,14 +73,42 @@ export class PveClient {
   async nodeStatus(node?: string): Promise<NodeStatus> {
     const n = node ?? this.defaultNode;
     const data = await this.get<JsonRecord>(`/nodes/${n}/status`);
+
+    let cpu = toNum(data.cpu);
+    let maxcpu = toNum(data.maxcpu);
+    let mem = toNum(data.mem);
+    let maxmem = toNum(data.maxmem);
+    let uptime = toNum(data.uptime);
+
+    try {
+      const resources = await this.get<unknown[]>("/cluster/resources", { type: "node" });
+      const row = (resources ?? []).find((r) => String((r as JsonRecord).node) === n) as
+        | JsonRecord
+        | undefined;
+      if (row) {
+        const rCpu = toNum(row.cpu);
+        const rMem = toNum(row.mem);
+        const rMaxmem = toNum(row.maxmem);
+        const rMaxcpu = toNum(row.maxcpu);
+        if (rCpu > 0 || cpu === 0) cpu = rCpu;
+        if (rMem > 0) mem = rMem;
+        if (rMaxmem > 0) maxmem = rMaxmem;
+        if (rMaxcpu > 0) maxcpu = rMaxcpu;
+        const rUptime = toNum(row.uptime);
+        if (rUptime > 0 && uptime === 0) uptime = rUptime;
+      }
+    } catch {
+      /* cluster/resources may be unavailable */
+    }
+
     return {
       node: n,
       status: String(data.status ?? "unknown"),
-      cpu: Number(data.cpu ?? 0),
-      maxcpu: Number(data.maxcpu ?? 0),
-      mem: Number(data.mem ?? 0),
-      maxmem: Number(data.maxmem ?? 0),
-      uptime: Number(data.uptime ?? 0),
+      cpu,
+      maxcpu,
+      mem,
+      maxmem,
+      uptime,
       loadavg: toNumArray(data.loadavg),
     };
   }
@@ -233,7 +242,8 @@ export class PveClient {
         const issues: string[] = [];
         if (vm.status !== "running") issues.push(`VM is ${vm.status}`);
 
-        const cpuPercent = vmCpuToPercent(vm.cpu);
+        const vcpus = enriched.cpus ?? vm.cpus;
+        const cpuPercent = vmCpuPercent(vm.cpu, vcpus);
         const memPercent = memToPercent(vm.mem, vm.maxmem);
 
         return {
@@ -316,7 +326,7 @@ export class PveClient {
       }
     }
 
-    const cpuPercent = vmCpuToPercent(vm.cpu);
+    const cpuPercent = vmCpuPercent(vm.cpu, vm.cpus);
     const memPercent = memToPercent(vm.mem, vm.maxmem);
 
     if (cpuPercent !== undefined && cpuPercent >= 90) issues.push(`CPU high: ${cpuPercent}%`);
@@ -336,6 +346,31 @@ export class PveClient {
       issues,
       ips,
     };
+  }
+
+  private async fetchNodeQemuList(node: string): Promise<VmSummary[]> {
+    const data = await this.get<unknown[]>(`/nodes/${node}/qemu`);
+    return (data ?? []).map((row) => this.mapVm(row as JsonRecord, node));
+  }
+
+  /** Live stats from status/current — cluster/resources CPU is often wrong for VMs. */
+  private async enrichRunningVmStats(summaries: VmSummary[]): Promise<void> {
+    const running = summaries.filter((v) => v.status === "running");
+    await Promise.all(
+      running.map(async (vm) => {
+        try {
+          const st = await this.get<JsonRecord>(
+            `/nodes/${vm.node}/qemu/${vm.vmid}/status/current`,
+          );
+          if (st.cpu != null) vm.cpu = toNum(st.cpu);
+          if (st.mem != null) vm.mem = toNum(st.mem);
+          if (st.maxmem != null) vm.maxmem = toNum(st.maxmem);
+          if (st.uptime != null) vm.uptime = toNum(st.uptime);
+        } catch {
+          /* VM may have stopped mid-fetch */
+        }
+      }),
+    );
   }
 
   private mapVm(row: JsonRecord, node: string): VmSummary {
@@ -440,8 +475,13 @@ function sleep(ms: number): Promise<void> {
 }
 
 function toNum(value: unknown, fallback = 0): number {
+  if (value === null || value === undefined || value === "") return fallback;
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
+}
+
+function vmCpuPercent(cpu: number | undefined, vcpus?: number): number | undefined {
+  return vmCpuToPercent(cpu, vcpus) ?? vmCpuFromCluster(cpu, vcpus);
 }
 
 function toNumArray(value: unknown): number[] {

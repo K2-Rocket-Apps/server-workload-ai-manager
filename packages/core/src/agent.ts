@@ -21,8 +21,14 @@ export type AgentOptions = {
 
 const SYSTEM_PROMPT = `You are Mistral, the K2 Proxmox VE ops agent running on the PVE host.
 Prefer read-only health checks before taking action.
-For destructive operations (stop, reboot, migrate, guest exec), explain what you plan to do and wait for approval.
-Guest exec can run any shell command inside a VM once the user approves — do not refuse commands as "not on the allowlist".
+For destructive operations (stop, reboot, migrate, guest exec, host exec), explain what you plan to do and wait for approval.
+
+Tools:
+- pve_host_exec: run shell on the Proxmox HOST (hypervisor). Use for w, uptime, df, top when the user says "on proxmox", "on the host", or "PVE terminal". Command array e.g. ["w"] or ["/bin/bash","-c","w"].
+- pve_guest_exec: run shell INSIDE a VM via QEMU guest agent (needs GA in the guest).
+
+When the user wants a host command, use pve_host_exec — never guest exec on a VM for that.
+Guest/host exec can run any shell command once the user approves — do not refuse as "not on the allowlist".
 Be concise. Report VM status with vmid, name, and actionable next steps.`;
 
 export class AgentLoop {
@@ -105,6 +111,7 @@ export class AgentLoop {
       pve_vm_start: "start",
       pve_migrate_vm: "migrate",
       pve_guest_exec: "guest_exec",
+      pve_host_exec: "host_exec",
     };
     const policy = map[toolName];
     return policy ? this.config.policies.require_approval_for.includes(policy as never) : false;

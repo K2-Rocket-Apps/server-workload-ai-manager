@@ -40,8 +40,8 @@ export const ConfigSchema = z.object({
   }),
   policies: z.object({
     require_approval_for: z
-      .array(z.enum(["stop", "reboot", "migrate", "guest_exec", "start"]))
-      .default(["stop", "reboot", "migrate", "guest_exec"]),
+      .array(z.enum(["stop", "reboot", "migrate", "guest_exec", "host_exec", "start"]))
+      .default(["stop", "reboot", "migrate", "guest_exec", "host_exec"]),
     auto_alert_on: z
       .array(
         z.enum([
@@ -55,6 +55,8 @@ export const ConfigSchema = z.object({
       .default(["guest_agent_down", "high_cpu", "high_mem", "disk_full", "vm_stopped_unexpected"]),
     guest_exec_unrestricted: z.boolean().default(true),
     guest_exec_allowlist: z.array(z.string()).default([]),
+    host_exec_unrestricted: z.boolean().default(true),
+    host_exec_allowlist: z.array(z.string()).default([]),
   }),
   migration: z
     .object({
@@ -116,10 +118,12 @@ export const DEFAULT_CONFIG: AppConfig = {
     watched_vmids: [121, 122],
   },
   policies: {
-    require_approval_for: ["stop", "reboot", "migrate", "guest_exec"],
+    require_approval_for: ["stop", "reboot", "migrate", "guest_exec", "host_exec"],
     auto_alert_on: ["guest_agent_down", "high_cpu", "high_mem", "disk_full", "vm_stopped_unexpected"],
     guest_exec_unrestricted: true,
     guest_exec_allowlist: [],
+    host_exec_unrestricted: true,
+    host_exec_allowlist: [],
   },
   migration: { target_nodes: [], requires_approval: true },
   web: { host: "0.0.0.0", port: 8787, bind_mode: "lan", admin_username: "admin", password_hash: "", session_secret: "" },

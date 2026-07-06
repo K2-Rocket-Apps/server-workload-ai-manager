@@ -55,18 +55,18 @@ cp "$ROOT/infra/systemd/mistral-web.service" /etc/systemd/system/
 cp "$ROOT/infra/systemd/mistral-mcp.service" /etc/systemd/system/
 systemctl daemon-reload
 
-# Interactive setup (password, bind, email) — required on first install
+# First-time API/email setup (web password is set by start web below)
 export MISTRAL_CONFIG="$CONFIG_FILE"
-if [[ ! -f "$CONFIG_FILE" ]] || grep -qE '^  password_hash: ""$' "$CONFIG_FILE" 2>/dev/null || ! grep -q 'password_hash:' "$CONFIG_FILE" 2>/dev/null; then
+if [[ ! -f "$CONFIG_FILE" ]] || ! grep -q 'api_key:' "$CONFIG_FILE" 2>/dev/null; then
   echo ""
-  echo "==> First-time setup"
+  echo "==> First-time setup (API key, email)"
   echo ""
   mistral setup
 fi
 
 echo ""
-echo "==> Starting web dashboard (systemd + boot)..."
-mistral start web || true
+echo "==> Web dashboard (admin password + bind address)"
+sudo mistral start web || mistral start web || true
 
 echo ""
 echo "==> Done!"

@@ -14,45 +14,60 @@ import { promptMasked } from "./setup.js";
 export type WebSetupOptions = {
   nonInteractive?: boolean;
   enableSystemd?: boolean;
+  skipPassword?: boolean;
 };
+
+function assertInteractiveTty(): void {
+  if (!input.isTTY) {
+    throw new Error(
+      "Interactive setup requires a terminal. SSH in and run: sudo mistral start web",
+    );
+  }
+}
 
 /** Interactive wizard: admin user, password, LAN/Tailscale bind. */
 export async function runWebSetup(options: WebSetupOptions = {}): Promise<AppConfig> {
   const config = await loadConfig();
+  const interactive = !options.nonInteractive;
+  if (interactive) assertInteractiveTty();
   const rl = readline.createInterface({ input, output });
 
   console.log("\n=== Mistral Web Dashboard Setup ===\n");
 
-  if (!options.nonInteractive || !isWebPasswordConfigured(config)) {
-    const user =
-      (await rl.question(`Admin username [${config.web.admin_username || "admin"}]: `)) ||
-      config.web.admin_username ||
-      "admin";
-    config.web.admin_username = user.trim() || "admin";
+  if (!options.skipPassword) {
+    if (options.nonInteractive) {
+      if (!isWebPasswordConfigured(config)) {
+        throw new Error("Web password not set. Run interactively: sudo mistral start web");
+      }
+    } else {
+      const user =
+        (await rl.question(`Admin username [${config.web.admin_username || "admin"}]: `)) ||
+        config.web.admin_username ||
+        "admin";
+      config.web.admin_username = user.trim() || "admin";
 
-    console.log("\n--- Admin password (min 8 characters) ---");
-    let password = "";
-    while (password.length < 8) {
-      password = await promptMasked("Password: ", rl);
-      if (password.length < 8) console.log("Password must be at least 8 characters.");
-    }
-    const confirm = await promptMasked("Confirm password: ", rl);
-    if (password !== confirm) {
-      console.error("Passwords do not match.");
-      process.exit(1);
-    }
-    config.web.password_hash = hashPassword(password);
-    config.web.session_secret = generateSessionSecret();
-  } else {
-    if (!isWebPasswordConfigured(config)) {
-      throw new Error("Web password not set. Run: sudo mistral start web");
-    }
-    if (!config.web.admin_username) {
-      config.web.admin_username = "admin";
-    }
-    if (!config.web.session_secret) {
+      console.log("\n--- Admin password (min 8 characters) ---");
+      let password = "";
+      while (password.length < 8) {
+        password = await promptMasked("Password: ", rl);
+        if (password.length < 8) console.log("Password must be at least 8 characters.");
+      }
+      const confirm = await promptMasked("Confirm password: ", rl);
+      if (password !== confirm) {
+        console.error("Passwords do not match.");
+        process.exit(1);
+      }
+      config.web.password_hash = hashPassword(password);
       config.web.session_secret = generateSessionSecret();
     }
+  } else if (!isWebPasswordConfigured(config)) {
+    throw new Error("Web password not set. Run: sudo mistral start web");
+  } else if (!config.web.session_secret) {
+    config.web.session_secret = generateSessionSecret();
+  }
+
+  if (!config.web.admin_username) {
+    config.web.admin_username = "admin";
   }
 
   const lan = detectLanIp();

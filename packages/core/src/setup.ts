@@ -1,7 +1,6 @@
 import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import type { AppConfig } from "./config.js";
-import { hashPassword, generateSessionSecret } from "./auth.js";
 import { detectLanIp, detectTailscaleIp, resolveBindHost, type BindMode } from "./network.js";
 import { loadConfig, saveConfig, configPath } from "./config-loader.js";
 import { LlmClient } from "./llm.js";
@@ -127,26 +126,10 @@ export async function runSetup(options: { nonInteractive?: boolean } = {}): Prom
       if (cont.toLowerCase() !== "y") process.exit(1);
     }
 
-    // Web admin
-    console.log("\n--- Web dashboard admin ---");
-    const user =
-      (await rl.question(`Admin username [${config.web.admin_username || "admin"}]: `)) ||
-      config.web.admin_username ||
-      "admin";
-    config.web.admin_username = user.trim() || "admin";
-
-    let password = "";
-    while (password.length < 8) {
-      password = await promptMasked("Web UI password (min 8 chars): ", rl);
-      if (password.length < 8) console.log("Password must be at least 8 characters.");
-    }
-    const confirm = await promptMasked("Confirm password: ", rl);
-    if (password !== confirm) {
-      console.error("Passwords do not match.");
-      process.exit(1);
-    }
-    config.web.password_hash = hashPassword(password);
-    config.web.session_secret = generateSessionSecret();
+    // Web dashboard password is set by: sudo mistral start web
+    console.log("\n--- Web dashboard ---");
+    console.log("After setup, run: sudo mistral start web");
+    console.log("(You will be prompted for admin username + password.)\n");
   }
 
   const lan = detectLanIp();

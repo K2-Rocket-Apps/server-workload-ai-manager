@@ -163,10 +163,15 @@ program
   .description("Start Mistral services")
   .argument("<target>", "web | daemon | all")
   .option("-f, --foreground", "Run in foreground (no systemd)")
-  .option("--reconfigure", "Re-run web setup wizard")
-  .action(async (target: string, opts: { foreground?: boolean; reconfigure?: boolean }) => {
+  .option("--quick", "Skip setup wizard (password must already be set)")
+  .option("--reconfigure", "Alias for full setup (same as default)")
+  .action(async (target: string, opts: { foreground?: boolean; reconfigure?: boolean; quick?: boolean }) => {
     if (target === "web" || target === "all") {
-      await runStartWeb({ foreground: opts.foreground, reconfigure: opts.reconfigure });
+      await runStartWeb({
+        foreground: opts.foreground,
+        reconfigure: opts.reconfigure,
+        quick: opts.quick,
+      });
       return;
     }
     if (target === "daemon") {

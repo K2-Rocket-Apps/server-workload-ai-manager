@@ -1,4 +1,4 @@
-import { createPveClient } from "@mistral/pve";
+import { createPveClient, hostExec } from "@mistral/pve";
 import type { AppConfig } from "@mistral/core";
 import { toPveConfig } from "@mistral/core";
 import { AlertDispatcher } from "@mistral/alerts";
@@ -13,6 +13,7 @@ const WRITE_TOOLS = new Set([
   "pve_migrate_vm",
   "pve_set_vm_note",
   "pve_guest_exec",
+  "pve_host_exec",
 ]);
 
 export class ToolRegistry {
@@ -26,7 +27,7 @@ export class ToolRegistry {
   }
 
   definitions(): ToolDefinition[] {
-    return [
+    const defs: ToolDefinition[] = [
       tool("pve_list_vms", "List all VMs with status, CPU, RAM, disk.", {}),
       tool("pve_vm_status", "Detailed status for one VM.", {
         vmid: { type: "integer", description: "VM ID" },
@@ -35,7 +36,7 @@ export class ToolRegistry {
       tool("pve_guest_agent_ping", "Check if QEMU guest agent is alive.", {
         vmid: { type: "integer" },
       }, ["vmid"]),
-      tool("pve_guest_exec", "Run command in VM via guest agent (PVE 8 array format). Requires approval.", {
+      tool("pve_guest_exec", "Run command inside a VM via guest agent (not the PVE host). Requires approval.", {
         vmid: { type: "integer" },
         command: { type: "array", items: { type: "string" }, description: 'e.g. ["/bin/bash","-c","df -h"]' },
         approved: { type: "boolean", description: "Set true after user approval" },
@@ -83,6 +84,24 @@ export class ToolRegistry {
         note: { type: "string" },
       }, ["vmid", "cron"]),
     ];
+
+    if (this.pve.isLocalMode()) {
+      defs.splice(6, 0, tool(
+        "pve_host_exec",
+        "Run shell on the Proxmox HOST (hypervisor), not inside a VM. Use for w, uptime, df, top. Requires approval.",
+        {
+          command: {
+            type: "array",
+            items: { type: "string" },
+            description: 'e.g. ["w"] or ["/bin/bash","-c","w"]',
+          },
+          approved: { type: "boolean", description: "Set true after user approval" },
+        },
+        ["command"],
+      ));
+    }
+
+    return defs;
   }
 
   async execute(name: string, args: Record<string, unknown>, ctx: { approved?: boolean } = {}): Promise<string> {
@@ -115,6 +134,11 @@ export class ToolRegistry {
         const command = a.command as string[];
         this.assertGuestExecAllowed(command);
         return this.pve.guestExecAndWait(Number(a.vmid), command);
+      },
+      pve_host_exec: async (a) => {
+        const command = a.command as string[];
+        this.assertHostExecAllowed(command);
+        return hostExec(command);
       },
       pve_guest_get_ips: async (a) => ({ ips: await this.pve.guestGetIps(Number(a.vmid)) }),
       pve_console_url: async (a) => ({ url: this.pve.consoleUrl(Number(a.vmid)) }),
@@ -170,6 +194,7 @@ export class ToolRegistry {
       pve_vm_start: "start",
       pve_migrate_vm: "migrate",
       pve_guest_exec: "guest_exec",
+      pve_host_exec: "host_exec",
     };
     const policy = map[toolName];
     return policy ? this.config.policies.require_approval_for.includes(policy as never) : false;
@@ -185,6 +210,20 @@ export class ToolRegistry {
     if (!allowed) {
       throw new Error(
         `Guest exec not in allowlist. Allowed prefixes: ${list.join(", ")} — or set policies.guest_exec_unrestricted: true`,
+      );
+    }
+  }
+
+  private assertHostExecAllowed(command: string[]): void {
+    if (this.config.policies.host_exec_unrestricted) return;
+    const list = this.config.policies.host_exec_allowlist;
+    if (!list.length || list.includes("*")) return;
+
+    const joined = command.join(" ");
+    const allowed = list.some((prefix) => joined.includes(prefix));
+    if (!allowed) {
+      throw new Error(
+        `Host exec not in allowlist. Allowed prefixes: ${list.join(", ")} — or set policies.host_exec_unrestricted: true`,
       );
     }
   }

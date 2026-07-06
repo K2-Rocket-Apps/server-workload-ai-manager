@@ -14,6 +14,8 @@ export type StartWebOptions = WebSetupOptions & {
   foreground?: boolean;
   noSystemd?: boolean;
   reconfigure?: boolean;
+  /** Skip setup wizard — only start/enable services (password must already be set). */
+  quick?: boolean;
 };
 
 function isRoot(): boolean {
@@ -42,17 +44,22 @@ function systemdActive(): boolean {
 export async function runStartWeb(options: StartWebOptions = {}): Promise<void> {
   let config = await loadConfig();
 
-  if (!isWebPasswordConfigured(config)) {
-    console.log("\n⚠ Web admin password not set — setup required.\n");
-    config = await runWebSetup({ nonInteractive: false });
-  } else if (options.reconfigure) {
-    config = await runWebSetup({ nonInteractive: false });
-  } else {
+  if (options.quick) {
+    if (!isWebPasswordConfigured(config)) {
+      console.error(
+        "Web admin password not set.\nRun interactively (will prompt for password):\n  sudo mistral start web",
+      );
+      process.exit(1);
+    }
     config = applyWebBind(config);
     if (!config.web.session_secret) {
       config.web.session_secret = generateSessionSecret();
     }
     await saveConfig(config);
+  } else {
+    console.log("\n=== Web dashboard setup ===");
+    console.log("You will be asked for an admin username and password.\n");
+    config = await runWebSetup({ nonInteractive: false });
   }
 
   if (!isWebPasswordConfigured(config)) {
