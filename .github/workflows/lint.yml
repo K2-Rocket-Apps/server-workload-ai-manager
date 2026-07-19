@@ -1,4 +1,4 @@
-name: tests
+name: lint
 
 on:
   push:
@@ -10,8 +10,6 @@ permissions:
   contents: read
 
 jobs:
-  tests:
-    uses: K2-Rocket-Apps/ci-workflows/.github/workflows/tests.yml@v1
-    with:
-      php-versions: '["8.4"]'
+  lint:
+    uses: K2-Rocket-Apps/ci-workflows/.github/workflows/lint.yml@v1
     secrets: inherit
